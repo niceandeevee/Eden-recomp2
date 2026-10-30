@@ -1,0 +1,1696 @@
+// SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+package org.yuzu.yuzu_emu.features.settings.model.view
+
+import androidx.annotation.StringRes
+import org.yuzu.yuzu_emu.NativeLibrary
+import org.yuzu.yuzu_emu.R
+import org.yuzu.yuzu_emu.YuzuApplication
+import org.yuzu.yuzu_emu.features.input.NativeInput
+import org.yuzu.yuzu_emu.features.input.model.NpadStyleIndex
+import org.yuzu.yuzu_emu.features.settings.model.AbstractBooleanSetting
+import org.yuzu.yuzu_emu.features.settings.model.AbstractSetting
+import org.yuzu.yuzu_emu.features.settings.model.BooleanSetting
+import org.yuzu.yuzu_emu.features.settings.model.ByteSetting
+import org.yuzu.yuzu_emu.features.settings.model.IntSetting
+import org.yuzu.yuzu_emu.features.settings.model.LongSetting
+import org.yuzu.yuzu_emu.features.settings.model.ShortSetting
+import org.yuzu.yuzu_emu.features.settings.model.StringSetting
+import org.yuzu.yuzu_emu.features.settings.model.UShortSetting
+import org.yuzu.yuzu_emu.network.NetDataValidators
+import org.yuzu.yuzu_emu.utils.LosslessScalingHelper
+import org.yuzu.yuzu_emu.utils.NativeConfig
+
+/**
+ * ViewModel abstraction for an Item in the RecyclerView powering SettingsFragments.
+ * Each one corresponds to a [AbstractSetting] object, so this class's subclasses
+ * should vaguely correspond to those subclasses. There are a few with multiple analogues
+ * and a few with none (Headers, for example, do not correspond to anything in the ini
+ * file.)
+ */
+abstract class SettingsItem(
+    val setting: AbstractSetting,
+    @StringRes val titleId: Int,
+    val titleString: String,
+    @StringRes val descriptionId: Int,
+    val descriptionString: String
+) {
+    abstract val type: Int
+
+    val title: String by lazy {
+        if (titleId != 0) {
+            return@lazy YuzuApplication.appContext.getString(titleId)
+        }
+        return@lazy titleString
+    }
+
+    val description: String by lazy {
+        if (descriptionId != 0) {
+            return@lazy YuzuApplication.appContext.getString(descriptionId)
+        }
+        return@lazy descriptionString
+    }
+
+    val isEditable: Boolean
+        get() {
+            // Can't change docked mode toggle when using handheld mode
+            if (setting.key == BooleanSetting.USE_DOCKED_MODE.key) {
+                return NativeInput.getStyleIndex(0) != NpadStyleIndex.Handheld
+            }
+
+            // Can't edit enable_qlaunch_button if firmware is not available
+            if (setting.key == BooleanSetting.ENABLE_QLAUNCH_BUTTON.key) {
+                return NativeLibrary.isFirmwareAvailable()
+            }
+
+            if (setting.key in frameGenKeys &&
+                !(LosslessScalingHelper.isInstalled() && LosslessScalingHelper.isSupportedByGpu())
+            ) {
+                return false
+            }
+
+            // A frame rate target moves the multiplier on its own
+            if (setting.key == IntSetting.RENDERER_FRAME_GEN_MULTIPLIER.key &&
+                frameGenTargetRate != 0
+            ) {
+                return false
+            }
+
+            // Can't edit settings that aren't saveable in per-game config even if they are switchable
+            if (NativeConfig.isPerGameConfigLoaded() && !setting.isSaveable) {
+                return false
+            }
+
+            if (!NativeLibrary.isRunning()) return true
+
+            // Prevent editing settings that were modified in per-game config while editing global
+            // config
+            if (!NativeConfig.isPerGameConfigLoaded() && !setting.global) {
+                return false
+            }
+
+            return setting.isRuntimeModifiable
+        }
+
+    val needsRuntimeGlobal: Boolean
+        get() = NativeLibrary.isRunning() && !setting.global &&
+            !NativeConfig.isPerGameConfigLoaded()
+
+    val clearable: Boolean
+        get() = !setting.global && NativeConfig.isPerGameConfigLoaded()
+
+    private val frameGenTargetRate: Int
+        get() {
+            val key = IntSetting.RENDERER_FRAME_GEN_TARGET_RATE.key
+            val needsGlobal = if (NativeLibrary.isRunning() &&
+                !NativeConfig.isPerGameConfigLoaded()
+            ) {
+                !NativeConfig.usingGlobal(key)
+            } else {
+                NativeConfig.usingGlobal(key)
+            }
+            return IntSetting.RENDERER_FRAME_GEN_TARGET_RATE.getInt(needsGlobal)
+        }
+
+    companion object {
+        private val frameGenKeys = setOf(
+            BooleanSetting.RENDERER_FRAME_GEN.key,
+            IntSetting.RENDERER_FRAME_GEN_MULTIPLIER.key,
+            IntSetting.RENDERER_FRAME_GEN_TARGET_RATE.key,
+            IntSetting.RENDERER_FRAME_GEN_QUEUE_TARGET.key,
+            BooleanSetting.RENDERER_FRAME_GEN_FLOW_SCALE_AUTO.key,
+            IntSetting.RENDERER_FRAME_GEN_FLOW_SCALE.key
+        )
+
+        const val TYPE_HEADER = 0
+        const val TYPE_SWITCH = 1
+        const val TYPE_SINGLE_CHOICE = 2
+        const val TYPE_SLIDER = 3
+        const val TYPE_SUBMENU = 4
+        const val TYPE_STRING_SINGLE_CHOICE = 5
+        const val TYPE_DATETIME_SETTING = 6
+        const val TYPE_RUNNABLE = 7
+        const val TYPE_INPUT = 8
+        const val TYPE_INT_SINGLE_CHOICE = 9
+        const val TYPE_INPUT_PROFILE = 10
+        const val TYPE_STRING_INPUT = 11
+        const val TYPE_SPINBOX = 12
+        const val TYPE_LAUNCHABLE = 13
+        const val TYPE_PATH = 14
+        const val TYPE_GPU_UNSWIZZLE = 15
+        const val TYPE_FX_TOOLBAR = 16
+        const val TYPE_FX_PRESET = 17
+        const val TYPE_FX_SHADER = 18
+        const val TYPE_FX_BUTTON = 19
+
+        const val FASTMEM_COMBINED = "fastmem_combined"
+        const val GPU_UNSWIZZLE_COMBINED = "gpu_unswizzle_combined"
+
+        val emptySetting = object : AbstractSetting {
+            override val key: String = ""
+            override val defaultValue: Any = false
+            override val isSaveable = true
+            override fun getValueAsString(needsGlobal: Boolean): String = ""
+            override fun reset() {}
+        }
+
+        // Extension for putting SettingsItems into a hashmap without repeating yourself
+        fun HashMap<String, SettingsItem>.put(item: SettingsItem) {
+            put(item.setting.key, item)
+        }
+
+        // List of all general
+        val settingsItems = HashMap<String, SettingsItem>().apply {
+            // Settings exposed by the S24+ build (previously hidden)
+            put(
+                SwitchSetting(
+                    BooleanSetting.MULTI_CORE,
+                    titleId = R.string.hidden_use_multi_core,
+                    descriptionId = R.string.hidden_use_multi_core_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.FRAME_PACING_MODE,
+                    titleId = R.string.hidden_frame_pacing_mode,
+                    descriptionId = R.string.hidden_frame_pacing_mode_description,
+                    choicesId = R.array.framePacingNames,
+                    valuesId = R.array.framePacingValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ASYNC_PRESENTATION,
+                    titleId = R.string.hidden_async_presentation,
+                    descriptionId = R.string.hidden_async_presentation_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.VULKAN_DRIVER_PIPELINE_CACHE,
+                    titleId = R.string.hidden_use_vulkan_driver_pipeline_cache,
+                    descriptionId = R.string.hidden_use_vulkan_driver_pipeline_cache_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.ASTC_RECOMPRESSION,
+                    titleId = R.string.hidden_astc_recompression,
+                    descriptionId = R.string.hidden_astc_recompression_description,
+                    choicesId = R.array.astcRecompressionNames,
+                    valuesId = R.array.astcRecompressionValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_VIDEO_FRAMERATE,
+                    titleId = R.string.hidden_use_video_framerate,
+                    descriptionId = R.string.hidden_use_video_framerate_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.BARRIER_FEEDBACK_LOOPS,
+                    titleId = R.string.hidden_barrier_feedback_loops,
+                    descriptionId = R.string.hidden_barrier_feedback_loops_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_COMPUTE_PIPELINES,
+                    titleId = R.string.hidden_enable_compute_pipelines,
+                    descriptionId = R.string.hidden_enable_compute_pipelines_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_UNFUSE_FMA,
+                    titleId = R.string.hidden_cpuopt_unsafe_unfuse_fma,
+                    descriptionId = R.string.hidden_cpuopt_unsafe_unfuse_fma_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_REDUCE_FP_ERROR,
+                    titleId = R.string.hidden_cpuopt_unsafe_reduce_fp_error,
+                    descriptionId = R.string.hidden_cpuopt_unsafe_reduce_fp_error_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_IGNORE_STANDARD_FPCR,
+                    titleId = R.string.hidden_cpuopt_unsafe_ignore_standard_fpcr,
+                    descriptionId = R.string.hidden_cpuopt_unsafe_ignore_standard_fpcr_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_INACCURATE_NAN,
+                    titleId = R.string.hidden_cpuopt_unsafe_inaccurate_nan,
+                    descriptionId = R.string.hidden_cpuopt_unsafe_inaccurate_nan_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_FASTMEM_CHECK,
+                    titleId = R.string.hidden_cpuopt_unsafe_fastmem_check,
+                    descriptionId = R.string.hidden_cpuopt_unsafe_fastmem_check_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_IGNORE_GLOBAL_MONITOR,
+                    titleId = R.string.hidden_cpuopt_unsafe_ignore_global_monitor,
+                    descriptionId = R.string.hidden_cpuopt_unsafe_ignore_global_monitor_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_PAGE_TABLES,
+                    titleId = R.string.hidden_cpuopt_page_tables,
+                    descriptionId = R.string.hidden_cpuopt_page_tables_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_BLOCK_LINKING,
+                    titleId = R.string.hidden_cpuopt_block_linking,
+                    descriptionId = R.string.hidden_cpuopt_block_linking_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_RETURN_STACK_BUFFER,
+                    titleId = R.string.hidden_cpuopt_return_stack_buffer,
+                    descriptionId = R.string.hidden_cpuopt_return_stack_buffer_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_FAST_DISPATCHER,
+                    titleId = R.string.hidden_cpuopt_fast_dispatcher,
+                    descriptionId = R.string.hidden_cpuopt_fast_dispatcher_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_CONTEXT_ELIMINATION,
+                    titleId = R.string.hidden_cpuopt_context_elimination,
+                    descriptionId = R.string.hidden_cpuopt_context_elimination_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_CONST_PROP,
+                    titleId = R.string.hidden_cpuopt_const_prop,
+                    descriptionId = R.string.hidden_cpuopt_const_prop_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_MISC_IR,
+                    titleId = R.string.hidden_cpuopt_misc_ir,
+                    descriptionId = R.string.hidden_cpuopt_misc_ir_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_REDUCE_MISALIGN_CHECKS,
+                    titleId = R.string.hidden_cpuopt_reduce_misalign_checks,
+                    descriptionId = R.string.hidden_cpuopt_reduce_misalign_checks_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_RECOMPILE_EXCLUSIVES,
+                    titleId = R.string.hidden_cpuopt_recompile_exclusives,
+                    descriptionId = R.string.hidden_cpuopt_recompile_exclusives_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_IGNORE_MEMORY_ABORTS,
+                    titleId = R.string.hidden_cpuopt_ignore_memory_aborts,
+                    descriptionId = R.string.hidden_cpuopt_ignore_memory_aborts_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DISABLE_SHADER_LOOP_SAFETY_CHECKS,
+                    titleId = R.string.hidden_disable_shader_loop_safety_checks,
+                    descriptionId = R.string.hidden_disable_shader_loop_safety_checks_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHADER_FEEDBACK,
+                    titleId = R.string.hidden_shader_feedback,
+                    descriptionId = R.string.hidden_shader_feedback_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DISABLE_MACRO_JIT,
+                    titleId = R.string.hidden_disable_macro_jit,
+                    descriptionId = R.string.hidden_disable_macro_jit_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DISABLE_MACRO_HLE,
+                    titleId = R.string.hidden_disable_macro_hle,
+                    descriptionId = R.string.hidden_disable_macro_hle_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.FRAME_GEN_DUMP_FLOW,
+                    titleId = R.string.hidden_frame_gen_dump_flow,
+                    descriptionId = R.string.hidden_frame_gen_dump_flow_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.TIME_ZONE_INDEX,
+                    titleId = R.string.hidden_time_zone_index,
+                    descriptionId = R.string.hidden_time_zone_index_description,
+                    choicesId = R.array.timeZoneNames,
+                    valuesId = R.array.timeZoneValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.SOUND_INDEX,
+                    titleId = R.string.hidden_sound_index,
+                    descriptionId = R.string.hidden_sound_index_description,
+                    choicesId = R.array.soundModeNames,
+                    valuesId = R.array.soundModeValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RNG_SEED_ENABLED,
+                    titleId = R.string.hidden_rng_seed_enabled,
+                    descriptionId = R.string.hidden_rng_seed_enabled_description
+                )
+            )
+            put(
+                SpinBoxSetting(
+                    IntSetting.RNG_SEED,
+                    titleId = R.string.hidden_rng_seed,
+                    descriptionId = R.string.hidden_rng_seed_description,
+                    valueHint = R.string.hidden_rng_seed,
+                    min = 0,
+                    max = Int.MAX_VALUE
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_VIRTUAL_SD,
+                    titleId = R.string.hidden_use_virtual_sd,
+                    descriptionId = R.string.hidden_use_virtual_sd_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.EXT_CONTENT_FROM_GAME_DIRS,
+                    titleId = R.string.hidden_ext_content_from_game_dirs,
+                    descriptionId = R.string.hidden_ext_content_from_game_dirs_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.QUEST_FLAG,
+                    titleId = R.string.hidden_quest_flag,
+                    descriptionId = R.string.hidden_quest_flag_description
+                )
+            )
+            put(
+                SliderSetting(
+                    ByteSetting.BG_RED,
+                    titleId = R.string.hidden_bg_red,
+                    descriptionId = R.string.hidden_bg_red_description,
+                    min = 0,
+                    max = 255
+                )
+            )
+            put(
+                SliderSetting(
+                    ByteSetting.BG_GREEN,
+                    titleId = R.string.hidden_bg_green,
+                    descriptionId = R.string.hidden_bg_green_description,
+                    min = 0,
+                    max = 255
+                )
+            )
+            put(
+                SliderSetting(
+                    ByteSetting.BG_BLUE,
+                    titleId = R.string.hidden_bg_blue,
+                    descriptionId = R.string.hidden_bg_blue_description,
+                    min = 0,
+                    max = 255
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.VIBRATION_ENABLED,
+                    titleId = R.string.hidden_vibration_enabled,
+                    descriptionId = R.string.hidden_vibration_enabled_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_ACCURATE_VIBRATIONS,
+                    titleId = R.string.hidden_enable_accurate_vibrations,
+                    descriptionId = R.string.hidden_enable_accurate_vibrations_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.MOTION_ENABLED,
+                    titleId = R.string.hidden_motion_enabled,
+                    descriptionId = R.string.hidden_motion_enabled_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_RING_CONTROLLER,
+                    titleId = R.string.hidden_enable_ring_controller,
+                    descriptionId = R.string.hidden_enable_ring_controller_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_IR_SENSOR,
+                    titleId = R.string.hidden_enable_ir_sensor,
+                    descriptionId = R.string.hidden_enable_ir_sensor_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RANDOM_AMIIBO_ID,
+                    titleId = R.string.hidden_random_amiibo_id,
+                    descriptionId = R.string.hidden_random_amiibo_id_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_ALL_CONTROLLERS,
+                    titleId = R.string.hidden_enable_all_controllers,
+                    descriptionId = R.string.hidden_enable_all_controllers_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.PERFORM_VULKAN_CHECK,
+                    titleId = R.string.hidden_perform_vulkan_check,
+                    descriptionId = R.string.hidden_perform_vulkan_check_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_DEBUG_ASSERTS,
+                    titleId = R.string.hidden_use_debug_asserts,
+                    descriptionId = R.string.hidden_use_debug_asserts_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_FS_ACCESS_LOG,
+                    titleId = R.string.hidden_enable_fs_access_log,
+                    descriptionId = R.string.hidden_enable_fs_access_log_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.REPORTING_SERVICES,
+                    titleId = R.string.hidden_reporting_services,
+                    descriptionId = R.string.hidden_reporting_services_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DUMP_EXEFS,
+                    titleId = R.string.hidden_dump_exefs,
+                    descriptionId = R.string.hidden_dump_exefs_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DUMP_NSO,
+                    titleId = R.string.hidden_dump_nso,
+                    descriptionId = R.string.hidden_dump_nso_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DUMP_AUDIO_COMMANDS,
+                    titleId = R.string.hidden_dump_audio_commands,
+                    descriptionId = R.string.hidden_dump_audio_commands_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_DEV_KEYS,
+                    titleId = R.string.hidden_use_dev_keys,
+                    descriptionId = R.string.hidden_use_dev_keys_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DISABLE_WEB_APPLET,
+                    titleId = R.string.hidden_disable_web_applet,
+                    descriptionId = R.string.hidden_disable_web_applet_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.CABINET_APPLET,
+                    titleId = R.string.hidden_cabinet_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.CONTROLLER_APPLET,
+                    titleId = R.string.hidden_controller_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.DATA_ERASE_APPLET,
+                    titleId = R.string.hidden_data_erase_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.ERROR_APPLET,
+                    titleId = R.string.hidden_error_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.NET_CONNECT_APPLET,
+                    titleId = R.string.hidden_net_connect_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.PLAYER_SELECT_APPLET,
+                    titleId = R.string.hidden_player_select_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.MII_EDIT_APPLET,
+                    titleId = R.string.hidden_mii_edit_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.WEB_APPLET,
+                    titleId = R.string.hidden_web_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.SHOP_APPLET,
+                    titleId = R.string.hidden_shop_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.PHOTO_VIEWER_APPLET,
+                    titleId = R.string.hidden_photo_viewer_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.OFFLINE_WEB_APPLET,
+                    titleId = R.string.hidden_offline_web_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.LOGIN_SHARE_APPLET,
+                    titleId = R.string.hidden_login_share_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.WIFI_WEB_AUTH_APPLET,
+                    titleId = R.string.hidden_wifi_web_auth_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.MY_PAGE_APPLET,
+                    titleId = R.string.hidden_my_page_applet,
+                    descriptionId = R.string.hidden_applet_description,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+
+            put(StringInputSetting(StringSetting.DEVICE_NAME, titleId = R.string.device_name))
+            put(
+                StringInputSetting(
+                    StringSetting.PROGRAM_ARGS,
+                    titleId = R.string.program_args,
+                    descriptionId = R.string.program_args_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_USE_SPEED_LIMIT,
+                    titleId = R.string.frame_limit_enable,
+                    descriptionId = R.string.frame_limit_enable_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_DYNA_STATE,
+                    titleId = R.string.dyna_state,
+                    descriptionId = R.string.dyna_state_description,
+                    choicesId = R.array.dynaStateEntries,
+                    valuesId = R.array.dynaStateValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_VERTEX_INPUT_DYNAMIC_STATE,
+                    titleId = R.string.vertex_input_dynamic_state,
+                    descriptionId = R.string.vertex_input_dynamic_state_description
+                )
+            )
+            put(
+                SliderSetting(
+                    IntSetting.RENDERER_SAMPLE_SHADING,
+                    titleId = R.string.sample_shading_fraction,
+                    descriptionId = R.string.sample_shading_fraction_description,
+                    units = "%"
+                )
+            )
+            put(
+                SliderSetting(
+                    ShortSetting.RENDERER_SPEED_LIMIT,
+                    titleId = R.string.frame_limit_slider,
+                    descriptionId = R.string.frame_limit_slider_description,
+                    min = 1,
+                    max = 400,
+                    units = "%"
+                )
+            )
+            put(
+                SliderSetting(
+                    ShortSetting.RENDERER_TURBO_SPEED_LIMIT,
+                    titleId = R.string.turbo_speed_limit,
+                    descriptionId = R.string.turbo_speed_limit_description,
+                    min = 1,
+                    max = 400,
+                    units = "%"
+                )
+            )
+            put(
+                SliderSetting(
+                    ShortSetting.RENDERER_SLOW_SPEED_LIMIT,
+                    titleId = R.string.slow_speed_limit,
+                    descriptionId = R.string.slow_speed_limit_description,
+                    min = 1,
+                    max = 400,
+                    units = "%"
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.CPU_BACKEND,
+                    titleId = R.string.cpu_backend,
+                    choicesId = R.array.cpuBackendArm64Names,
+                    valuesId = R.array.cpuBackendArm64Values
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.CPU_ACCURACY,
+                    titleId = R.string.cpu_accuracy,
+                    choicesId = R.array.cpuAccuracyNames,
+                    valuesId = R.array.cpuAccuracyValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.PICTURE_IN_PICTURE,
+                    titleId = R.string.picture_in_picture,
+                    descriptionId = R.string.picture_in_picture_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DEBUG_FLUSH_BY_LINE,
+                    titleId = R.string.flush_by_line,
+                    descriptionId = R.string.flush_by_line_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.EXTENDED_LOGGING,
+                    titleId = R.string.extended_logging,
+                    descriptionId = R.string.extended_logging_description
+                )
+            )
+
+            val dockedModeSetting = object : AbstractBooleanSetting {
+                override val key = BooleanSetting.USE_DOCKED_MODE.key
+
+                override fun getBoolean(needsGlobal: Boolean): Boolean {
+                    if (NativeInput.getStyleIndex(0) == NpadStyleIndex.Handheld) {
+                        return false
+                    }
+                    return BooleanSetting.USE_DOCKED_MODE.getBoolean(needsGlobal)
+                }
+
+                override fun setBoolean(value: Boolean) =
+                    BooleanSetting.USE_DOCKED_MODE.setBoolean(value)
+
+                override val defaultValue = BooleanSetting.USE_DOCKED_MODE.defaultValue
+
+                override fun getValueAsString(needsGlobal: Boolean): String =
+                    BooleanSetting.USE_DOCKED_MODE.getValueAsString(needsGlobal)
+
+                override fun reset() = BooleanSetting.USE_DOCKED_MODE.reset()
+            }
+
+            put(
+                SwitchSetting(
+                    dockedModeSetting,
+                    titleId = R.string.use_docked_mode,
+                    descriptionId = R.string.use_docked_mode_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.MEMORY_LAYOUT,
+                    titleId = R.string.memory_layout,
+                    descriptionId = R.string.memory_layout_description,
+                    choicesId = R.array.memoryNames,
+                    valuesId = R.array.memoryValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CORE_SYNC_CORE_SPEED,
+                    titleId = R.string.use_sync_core,
+                    descriptionId = R.string.use_sync_core_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_CHEATS_BY_DEFAULT,
+                    titleId = R.string.enable_cheats_by_default,
+                    descriptionId = R.string.enable_cheats_by_default_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.REGION_INDEX,
+                    titleId = R.string.emulated_region,
+                    choicesId = R.array.regionNames,
+                    valuesId = R.array.regionValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.LANGUAGE_INDEX,
+                    titleId = R.string.emulated_language,
+                    choicesId = R.array.languageNames,
+                    valuesId = R.array.languageValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_CUSTOM_RTC,
+                    titleId = R.string.use_custom_rtc,
+                    descriptionId = R.string.use_custom_rtc_description
+                )
+            )
+            put(
+                StringInputSetting(
+                    StringSetting.WEB_TOKEN,
+                    titleId = R.string.web_token,
+                    descriptionId = R.string.web_token_description,
+                    onGenerate = {
+                        val chars = "abcdefghijklmnopqrstuvwxyz"
+                        (1..48).map { chars.random() }.joinToString("")
+                    },
+                    validator = NetDataValidators::token,
+                    errorId = R.string.multiplayer_token_error
+                )
+            )
+
+            put(
+                StringInputSetting(
+                    StringSetting.WEB_USERNAME,
+                    titleId = R.string.web_username,
+                    descriptionId = R.string.web_username_description,
+                    validator = NetDataValidators::username,
+                    errorId = R.string.multiplayer_username_error
+                )
+            )
+            put(DateTimeSetting(LongSetting.CUSTOM_RTC, titleId = R.string.set_custom_rtc))
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_ACCURACY,
+                    titleId = R.string.renderer_accuracy,
+                    descriptionId = R.string.renderer_accuracy_description,
+                    choicesId = R.array.rendererAccuracyNames,
+                    valuesId = R.array.rendererAccuracyValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_NVDEC_EMULATION,
+                    titleId = R.string.nvdec_emulation,
+                    descriptionId = R.string.nvdec_emulation_description,
+                    choicesId = R.array.rendererNvdecNames,
+                    valuesId = R.array.rendererNvdecValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_ASTC_DECODE_METHOD,
+                    titleId = R.string.accelerate_astc,
+                    descriptionId = R.string.accelerate_astc_description,
+                    choicesId = R.array.astcDecodingMethodNames,
+                    valuesId = R.array.astcDecodingMethodValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_VRAM_USAGE_MODE,
+                    titleId = R.string.vram_usage_mode,
+                    descriptionId = R.string.vram_usage_mode_description,
+                    choicesId = R.array.vramUsageMethodNames,
+                    valuesId = R.array.vramUsageMethodValues
+                )
+            )
+
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_RESOLUTION,
+                    titleId = R.string.renderer_resolution,
+                    choicesId = R.array.rendererResolutionNames,
+                    valuesId = R.array.rendererResolutionValues,
+                    warnChoices = (5..7).toList(),
+                    warningMessage = R.string.warning_resolution
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.INVERT_CONFIRM_BACK_CONTROLLER_BUTTONS,
+                    titleId = R.string.invert_confirm_back_controller_buttons,
+                    descriptionId = R.string.invert_confirm_back_controller_buttons_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_INPUT_OVERLAY,
+                    titleId = R.string.show_input_overlay,
+                    descriptionId = R.string.show_input_overlay_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.OVERLAY_SNAP_TO_GRID,
+                    titleId = R.string.overlay_snap_to_grid,
+                    descriptionId = R.string.overlay_snap_to_grid_description
+                )
+            )
+            put(
+                SliderSetting(
+                    IntSetting.OVERLAY_GRID_SIZE,
+                    titleId = R.string.overlay_grid_size,
+                    descriptionId = R.string.overlay_grid_size_description,
+                    min = 16,
+                    max = 128,
+                    units = "px"
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_INPUT_OVERLAY_AUTO_HIDE,
+                    titleId = R.string.enable_input_overlay_auto_hide,
+                )
+            )
+            put(
+                SpinBoxSetting(
+                    IntSetting.INPUT_OVERLAY_AUTO_HIDE,
+                    titleId = R.string.overlay_auto_hide,
+                    descriptionId = R.string.overlay_auto_hide_description,
+                    min = 1,
+                    max = 999,
+                    valueHint = R.string.seconds
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.HIDE_OVERLAY_ON_CONTROLLER_INPUT,
+                    titleId = R.string.hide_overlay_on_controller_input,
+                    descriptionId = R.string.hide_overlay_on_controller_input_description
+                )
+            )
+
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_PERFORMANCE_OVERLAY,
+                    R.string.enable_stats_overlay_,
+                    descriptionId = R.string.stats_overlay_options_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.PERF_OVERLAY_BACKGROUND,
+                    R.string.perf_overlay_background,
+                    descriptionId = R.string.perf_overlay_background_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.PERF_OVERLAY_POSITION,
+                    titleId = R.string.overlay_position,
+                    descriptionId = R.string.overlay_position_description,
+                    choicesId = R.array.statsPosition,
+                    valuesId = R.array.staticThemeValues
+                )
+            )
+
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_FPS,
+                    R.string.show_fps,
+                    descriptionId = R.string.show_fps_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_FRAMETIME,
+                    R.string.show_frametime,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_APP_RAM_USAGE,
+                    R.string.show_app_ram_usage,
+                    descriptionId = R.string.show_app_ram_usage_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_SYSTEM_RAM_USAGE,
+                    R.string.show_system_ram_usage,
+                    descriptionId = R.string.show_system_ram_usage_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_BAT_TEMPERATURE,
+                    R.string.show_bat_temperature,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.BAT_TEMPERATURE_UNIT,
+                    R.string.bat_temperature_unit,
+                    choicesId = R.array.temperatureUnitEntries,
+                    valuesId = R.array.temperatureUnitValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_POWER_INFO,
+                    R.string.show_power_info,
+                    descriptionId = R.string.show_power_info_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_SHADERS_BUILDING,
+                    R.string.show_shaders_building,
+                    descriptionId = R.string.show_shaders_building_description
+                )
+            )
+
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_SOC_OVERLAY,
+                    R.string.enable_soc_overlay,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SOC_OVERLAY_BACKGROUND,
+                    R.string.perf_overlay_background,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.SOC_OVERLAY_POSITION,
+                    titleId = R.string.overlay_position,
+                    descriptionId = 0,
+                    choicesId = R.array.statsPosition,
+                    valuesId = R.array.staticThemeValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_BUILD_ID,
+                    titleId = R.string.show_build_id,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_DRIVER_VERSION,
+                    titleId = R.string.show_driver_version,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_DEVICE_MODEL,
+                    titleId = R.string.show_device_model,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_GPU_MODEL,
+                    titleId = R.string.show_gpu_model,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_SOC_MODEL,
+                    titleId = R.string.show_soc_model,
+                    descriptionId = 0
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SHOW_FW_VERSION,
+                    titleId = R.string.show_fw_version,
+                    descriptionId = 0
+                )
+            )
+
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_VSYNC,
+                    titleId = R.string.renderer_vsync,
+                    choicesId = R.array.rendererVSyncNames,
+                    valuesId = R.array.rendererVSyncValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_SCALING_FILTER,
+                    titleId = R.string.renderer_scaling_filter,
+                    choicesId = R.array.rendererScalingFilterNames,
+                    valuesId = R.array.rendererScalingFilterValues
+                )
+            )
+            put(
+                SliderSetting(
+                    IntSetting.FSR_SHARPENING_SLIDER,
+                    titleId = R.string.fsr_sharpness,
+                    descriptionId = R.string.fsr_sharpness_description,
+                    max = 200,
+                    units = "%"
+                )
+            )
+            put(
+                SliderSetting(
+                    IntSetting.ANDROID_PIPELINE_WORKERS,
+                    titleId = R.string.pipeline_worker_cores,
+                    descriptionId = R.string.pipeline_worker_cores_description,
+                    min = 2,
+                    max = 8,
+                    units = "cores"
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_ANTI_ALIASING,
+                    titleId = R.string.renderer_anti_aliasing,
+                    choicesId = R.array.rendererAntiAliasingNames,
+                    valuesId = R.array.rendererAntiAliasingValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_FRAME_GEN,
+                    titleId = R.string.frame_gen,
+                    descriptionId = R.string.frame_gen_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_FRAME_GEN_MULTIPLIER,
+                    titleId = R.string.frame_gen_multiplier,
+                    descriptionId = R.string.frame_gen_multiplier_description,
+                    choicesId = R.array.frameGenMultiplierNames,
+                    valuesId = R.array.frameGenMultiplierValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_FRAME_GEN_TARGET_RATE,
+                    titleId = R.string.frame_gen_target_rate,
+                    descriptionId = R.string.frame_gen_target_rate_description,
+                    choicesId = R.array.frameGenTargetRateNames,
+                    valuesId = R.array.frameGenTargetRateValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_FRAME_GEN_QUEUE_TARGET,
+                    titleId = R.string.frame_gen_queue_target,
+                    descriptionId = R.string.frame_gen_queue_target_description,
+                    choicesId = R.array.frameGenQueueTargetNames,
+                    valuesId = R.array.frameGenQueueTargetValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_FRAME_GEN_FLOW_SCALE_AUTO,
+                    titleId = R.string.frame_gen_flow_scale_auto,
+                    descriptionId = R.string.frame_gen_flow_scale_auto_description
+                )
+            )
+            put(
+                SliderSetting(
+                    IntSetting.RENDERER_FRAME_GEN_FLOW_SCALE,
+                    titleId = R.string.frame_gen_flow_scale,
+                    descriptionId = R.string.frame_gen_flow_scale_description,
+                    min = 25,
+                    max = 100,
+                    units = "%"
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_SCREEN_LAYOUT,
+                    titleId = R.string.renderer_screen_layout,
+                    choicesId = R.array.rendererScreenLayoutNames,
+                    valuesId = R.array.rendererScreenLayoutValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_ASPECT_RATIO,
+                    titleId = R.string.renderer_aspect_ratio,
+                    choicesId = R.array.rendererAspectRatioNames,
+                    valuesId = R.array.rendererAspectRatioValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.VERTICAL_ALIGNMENT,
+                    titleId = R.string.vertical_alignment,
+                    descriptionId = 0,
+                    choicesId = R.array.verticalAlignmentEntries,
+                    valuesId = R.array.verticalAlignmentValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_USE_DISK_SHADER_CACHE,
+                    titleId = R.string.use_disk_shader_cache,
+                    descriptionId = R.string.use_disk_shader_cache_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_FORCE_MAX_CLOCK,
+                    titleId = R.string.renderer_force_max_clock,
+                    descriptionId = R.string.renderer_force_max_clock_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_ASYNCHRONOUS_GPU_EMULATION,
+                    titleId = R.string.renderer_asynchronous_gpu_emulation,
+                    descriptionId = R.string.renderer_asynchronous_gpu_emulation_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.DMA_ACCURACY,
+                    titleId = R.string.dma_accuracy,
+                    descriptionId = R.string.dma_accuracy_description,
+                    choicesId = R.array.dmaAccuracyNames,
+                    valuesId = R.array.dmaAccuracyValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.GPU_FENCE_BEHAVIOR,
+                    titleId = R.string.gpu_fence_behavior,
+                    descriptionId = R.string.gpu_fence_behavior_description,
+                    choicesId = R.array.gpuFenceBehaviorNames,
+                    valuesId = R.array.gpuFenceBehaviorValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_ASYNCHRONOUS_SHADERS,
+                    titleId = R.string.renderer_asynchronous_shaders,
+                    descriptionId = R.string.renderer_asynchronous_shaders_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.FAST_GPU_TIME,
+                    titleId = R.string.fast_gpu_time,
+                    descriptionId = R.string.fast_gpu_time_description,
+                    choicesId = R.array.gpuEntries,
+                    valuesId = R.array.gpuValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.GPU_UNSWIZZLE_TEXTURE_SIZE,
+                    titleId = R.string.gpu_unswizzle_texture_size,
+                    descriptionId = R.string.gpu_unswizzle_texture_size_description,
+                    choicesId = R.array.gpuTextureSizeSwizzleEntries,
+                    valuesId = R.array.gpuTextureSizeSwizzleValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.GPU_UNSWIZZLE_STREAM_SIZE,
+                    titleId = R.string.gpu_unswizzle_stream_size,
+                    descriptionId = R.string.gpu_unswizzle_stream_size_description,
+                    choicesId = R.array.gpuSwizzleEntries,
+                    valuesId = R.array.gpuSwizzleValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.GPU_UNSWIZZLE_CHUNK_SIZE,
+                    titleId = R.string.gpu_unswizzle_chunk_size,
+                    descriptionId = R.string.gpu_unswizzle_chunk_size_description,
+                    choicesId = R.array.gpuSwizzleChunkEntries,
+                    valuesId = R.array.gpuSwizzleChunkValues
+                )
+            )
+            put(
+                GpuUnswizzleSetting(
+                    titleId = R.string.gpu_unswizzle_settings,
+                    descriptionId = R.string.gpu_unswizzle_settings_description,
+                    textureSizeChoicesId = R.array.gpuTextureSizeSwizzleEntries,
+                    textureSizeValuesId = R.array.gpuTextureSizeSwizzleValues,
+                    streamSizeChoicesId = R.array.gpuSwizzleEntries,
+                    streamSizeValuesId = R.array.gpuSwizzleValues,
+                    chunkSizeChoicesId = R.array.gpuSwizzleChunkEntries,
+                    chunkSizeValuesId = R.array.gpuSwizzleChunkValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.FAST_CPU_TIME,
+                    titleId = R.string.fast_cpu_time,
+                    descriptionId = R.string.fast_cpu_time_description,
+                    choicesId = R.array.clockNames,
+                    valuesId = R.array.clockValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_CUSTOM_CPU_TICKS,
+                    titleId = R.string.custom_cpu_ticks,
+                    descriptionId = R.string.custom_cpu_ticks_description
+                )
+            )
+            put(
+                SpinBoxSetting(
+                    IntSetting.CPU_TICKS,
+                    titleId = R.string.cpu_ticks,
+                    descriptionId = 0,
+                    valueHint = R.string.cpu_ticks,
+                    min = 77,
+                    max = 65535
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SKIP_CPU_INNER_INVALIDATION,
+                    titleId = R.string.skip_cpu_inner_invalidation,
+                    descriptionId = R.string.skip_cpu_inner_invalidation_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.FIX_BLOOM_EFFECTS,
+                    titleId = R.string.fix_bloom_effects,
+                    descriptionId = R.string.fix_bloom_effects_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RESCALE_HACK,
+                    titleId = R.string.rescale_hack,
+                    descriptionId = R.string.rescale_hack_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.EMULATE_BGR565,
+                    titleId = R.string.emulate_bgr565,
+                    descriptionId = R.string.emulate_bgr565_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.CPUOPT_UNSAFE_HOST_MMU,
+                    titleId = R.string.cpuopt_unsafe_host_mmu,
+                    descriptionId = R.string.cpuopt_unsafe_host_mmu_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_REACTIVE_FLUSHING,
+                    titleId = R.string.renderer_reactive_flushing,
+                    descriptionId = R.string.renderer_reactive_flushing_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_BUFFER_HISTORY,
+                    titleId = R.string.enable_buffer_history,
+                    descriptionId = R.string.enable_buffer_history_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_OPTIMIZED_VERTEX_BUFFERS,
+                    titleId = R.string.use_optimized_vertex_buffers,
+                    descriptionId = R.string.use_optimized_vertex_buffers_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.SYNC_MEMORY_OPERATIONS,
+                    titleId = R.string.sync_memory_operations,
+                    descriptionId = R.string.sync_memory_operations_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.BUFFER_REORDER_DISABLE,
+                    titleId = R.string.buffer_reorder_disable,
+                    descriptionId = R.string.buffer_reorder_disable_description
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.MAX_ANISOTROPY,
+                    titleId = R.string.anisotropic_filtering,
+                    descriptionId = R.string.anisotropic_filtering_description,
+                    choicesId = R.array.anisoEntries,
+                    valuesId = R.array.anisoValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.AUDIO_OUTPUT_ENGINE,
+                    titleId = R.string.audio_output_engine,
+                    choicesId = R.array.outputEngineEntries,
+                    valuesId = R.array.outputEngineValues
+                )
+            )
+            put(
+                SliderSetting(
+                    ByteSetting.AUDIO_VOLUME,
+                    titleId = R.string.audio_volume,
+                    descriptionId = R.string.audio_volume_description,
+                    units = "%"
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.RENDERER_BACKEND,
+                    titleId = R.string.renderer_api,
+                    choicesId = R.array.rendererApiNames,
+                    valuesId = R.array.rendererApiValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_UPDATE_CHECKS,
+                    titleId = R.string.enable_update_checks,
+                    descriptionId = R.string.enable_update_checks_description,
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_QUICK_SETTINGS,
+                    titleId = R.string.enable_quick_settings,
+                    descriptionId = R.string.enable_quick_settings_description,
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_FOLDER_BUTTON,
+                    titleId = R.string.enable_folder_button,
+                    descriptionId = R.string.enable_folder_button_description,
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_QLAUNCH_BUTTON,
+                    titleId = R.string.enable_qlaunch_button,
+                    descriptionId = R.string.enable_qlaunch_button_description,
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.APP_LANGUAGE,
+                    titleId = R.string.app_language,
+                    descriptionId = R.string.app_language_description,
+                    choicesId = R.array.appLanguageNames,
+                    valuesId = R.array.appLanguageValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_DEBUG,
+                    titleId = R.string.renderer_debug,
+                    descriptionId = R.string.renderer_debug_description
+                )
+            )
+            // BCn texture patching debug override
+            put(
+                SwitchSetting(
+                    BooleanSetting.RENDERER_PATCH_OLD_QCOM_DRIVERS,
+                    titleId = R.string.patch_old_qcom_drivers,
+                    descriptionId = R.string.patch_old_qcom_drivers_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.USE_AUTO_STUB,
+                    titleId = R.string.use_auto_stub,
+                    descriptionId = R.string.use_auto_stub_description
+                )
+            )
+            put(
+                StringInputSetting(
+                    StringSetting.LOG_FILTER,
+                    titleId = R.string.log_filter,
+                    descriptionId = R.string.log_filter_description
+                )
+            )
+            put(
+                SpinBoxSetting(
+                    UShortSetting.DEBUG_KNOBS,
+                    titleId = R.string.debug_knobs,
+                    descriptionId = R.string.debug_knobs_description,
+                    valueHint = R.string.debug_knobs_hint,
+                    min = 0,
+                    max = 65535
+                )
+            )
+
+            // GPU Logging settings
+            put(
+                SingleChoiceSetting(
+                    ByteSetting.GPU_LOG_LEVEL,
+                    titleId = R.string.gpu_log_level,
+                    descriptionId = R.string.gpu_log_level_description,
+                    choicesId = R.array.gpuLogLevelEntries,
+                    valuesId = R.array.gpuLogLevelValues
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.GPU_LOG_VULKAN_CALLS,
+                    titleId = R.string.gpu_log_vulkan_calls,
+                    descriptionId = R.string.gpu_log_vulkan_calls_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DUMP_GUEST_SHADERS,
+                    titleId = R.string.dump_guest_shaders,
+                    descriptionId = R.string.dump_guest_shaders_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.GPU_LOG_SHADER_DUMPS,
+                    titleId = R.string.gpu_log_shader_dumps,
+                    descriptionId = R.string.gpu_log_shader_dumps_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.DUMP_MACROS,
+                    titleId = R.string.dump_macros,
+                    descriptionId = R.string.dump_macros_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.GPU_LOG_MEMORY_TRACKING,
+                    titleId = R.string.gpu_log_memory_tracking,
+                    descriptionId = R.string.gpu_log_memory_tracking_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.GPU_LOG_DRIVER_DEBUG,
+                    titleId = R.string.gpu_log_driver_debug,
+                    descriptionId = R.string.gpu_log_driver_debug_description
+                )
+            )
+            put(
+                SpinBoxSetting(
+                    IntSetting.GPU_LOG_RING_BUFFER_SIZE,
+                    titleId = R.string.gpu_log_ring_buffer_size,
+                    descriptionId = R.string.gpu_log_ring_buffer_size_description,
+                    valueHint = R.string.gpu_log_ring_buffer_size_hint,
+                    min = 64,
+                    max = 4096
+                )
+            )
+
+            val fastmem = object : AbstractBooleanSetting {
+                override fun getBoolean(needsGlobal: Boolean): Boolean =
+                    BooleanSetting.FASTMEM.getBoolean() &&
+                        BooleanSetting.FASTMEM_EXCLUSIVES.getBoolean()
+
+                override fun setBoolean(value: Boolean) {
+                    BooleanSetting.FASTMEM.setBoolean(value)
+                    BooleanSetting.FASTMEM_EXCLUSIVES.setBoolean(value)
+                }
+
+                override val key: String = FASTMEM_COMBINED
+                override val isRuntimeModifiable: Boolean = false
+                override val defaultValue: Boolean = true
+                override val isSwitchable: Boolean = true
+                override val pairedSettingKey: String = ""
+                override var global: Boolean
+                    get() {
+                        return BooleanSetting.FASTMEM.global &&
+                            BooleanSetting.FASTMEM_EXCLUSIVES.global
+                    }
+                    set(value) {
+                        BooleanSetting.FASTMEM.global = value
+                        BooleanSetting.FASTMEM_EXCLUSIVES.global = value
+                    }
+
+                override val isSaveable = true
+
+                override fun getValueAsString(needsGlobal: Boolean): String =
+                    getBoolean().toString()
+
+                override fun reset() = setBoolean(defaultValue)
+            }
+            put(SwitchSetting(fastmem, R.string.fastmem))
+
+            // Applet Settings
+            put(
+                SingleChoiceSetting(
+                    IntSetting.SWKBD_APPLET,
+                    titleId = R.string.swkbd_applet,
+                    choicesId = R.array.appletEntries,
+                    valuesId = R.array.appletValues
+                )
+            )
+
+            put(
+                SwitchSetting(
+                    BooleanSetting.AIRPLANE_MODE,
+                    titleId = R.string.airplane_mode,
+                    descriptionId = R.string.airplane_mode_description
+                )
+            )
+
+            put(
+                SwitchSetting(
+                    BooleanSetting.ENABLE_OVERLAY,
+                    titleId = R.string.enable_overlay,
+                    descriptionId = R.string.enable_overlay_description
+                )
+            )
+        }
+    }
+}

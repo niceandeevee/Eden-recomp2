@@ -1,0 +1,113 @@
+# Builds the Galaxy S24+ (Snapdragon 8 Gen 3) APK of Eden on GitHub's free runners.
+# Free for public repositories. Run it from the Actions tab ("Build Eden S24+ APK" -> Run workflow),
+# or push to the main branch. The installable APK is attached to the run as an artifact.
+
+name: Build Eden S24+ APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      lto:
+        description: "Link-time optimization (faster code, longer build). Falls back to a non-LTO build if it fails."
+        type: boolean
+        default: true
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+concurrency:
+  group: build-s24-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      NDK_VERSION: "28.2.13676358"
+      CMAKE_VERSION: "3.31.5"
+      CCACHE: "true"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: "3G"
+      CCACHE_COMPRESS: "true"
+      USE_LTO: ${{ github.event_name == 'push' || inputs.lto }}
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup \
+                      /usr/local/share/powershell /usr/share/swift /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the app version name comes from `git describe`
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android NDK and CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install host tools
+        run: sudo apt-get update && sudo apt-get install -y ccache ninja-build glslang-tools
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ccache
+            .cache/cpm
+          key: s24-${{ runner.os }}-${{ github.sha }}
+          restore-keys: s24-${{ runner.os }}-
+
+      - name: Restore Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('src/android/**/*.gradle.kts', 'src/android/gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Build APK (with LTO)
+        id: build_lto
+        if: env.USE_LTO == 'true'
+        continue-on-error: true
+        run: |
+          chmod +x .ci/android/build.sh
+          .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON
+
+      - name: Build APK (without LTO)
+        if: env.USE_LTO != 'true' || steps.build_lto.outcome == 'failure'
+        run: |
+          if [ "${{ steps.build_lto.outcome }}" = "failure" ]; then
+            echo "::warning::LTO build failed; rebuilding without LTO"
+            rm -rf build src/android/app/.cxx src/android/app/build artifacts
+          fi
+          chmod +x .ci/android/build.sh
+          .ci/android/build.sh -t s24 -b Release
+
+      - name: Rename APK
+        run: |
+          ls -l artifacts
+          VERSION=$(git describe --always --long | sed -E 's/(-0)?-[^-]+$//')
+          mkdir -p upload
+          for f in artifacts/*.apk; do cp "$f" "upload/Eden-S24plus-${VERSION}.apk"; done
+          ls -l upload
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Eden-S24plus-APK
+          path: upload/*.apk
+          if-no-files-found: error
+          retention-days: 30
