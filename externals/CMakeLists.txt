@@ -141,6 +141,7 @@ if(ENABLE_CUBEB)
     endif()
 endif()
 
+if (ENABLE_SDL3)
 if (NOT YUZU_USE_BUNDLED_SDL3)
     if (NOT WIN32)
         # Yuzu itself needs: Atomic Audio Events Joystick Haptic Sensor Threads Timers
@@ -184,6 +185,7 @@ if (NOT TARGET SDL3::SDL3)
         message(FATAL_ERROR "SDL3 package found, but no usable SDL3 target was exported")
     endif()
 endif()
+endif() # ENABLE_SDL3
 
 # SPIRV Headers
 AddJsonPackage(spirv-headers)

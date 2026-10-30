@@ -243,7 +243,10 @@ android {
                             // services (public lobby list/telemetry), no ReShade FX compiler.
                             "-DYUZU_DOWNLOAD_ANDROID_VVL=OFF",
                             "-DENABLE_WEB_SERVICE=OFF",
-                            "-DENABLE_RESHADE=OFF"
+                            "-DENABLE_RESHADE=OFF",
+                            // Controllers use Eden's Android input driver; SDL3 only adds a
+                            // backup audio sink on Android (cubeb/AAudio is the main one).
+                            "-DENABLE_SDL3=OFF"
                         )
                     )
                 }

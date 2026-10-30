@@ -16,7 +16,6 @@ import android.widget.TextView
 import androidx.annotation.Keep
 import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import org.libsdl.app.SDL
 import java.lang.ref.WeakReference
 import org.yuzu.yuzu_emu.activities.EmulationActivity
 import org.yuzu.yuzu_emu.fragments.CoreErrorDialogFragment
@@ -60,7 +59,11 @@ object NativeLibrary {
     init {
         try {
             System.loadLibrary("yuzu-android")
-            SDL.setupJNI()
+            // SDL is optional (the S24 build leaves it out), so set it up only if it's packaged.
+            try {
+                Class.forName("org.libsdl.app.SDL").getMethod("setupJNI").invoke(null)
+            } catch (_: ClassNotFoundException) {
+            }
             initJvm()
         } catch (ex: UnsatisfiedLinkError) {
             error("[NativeLibrary] $ex")

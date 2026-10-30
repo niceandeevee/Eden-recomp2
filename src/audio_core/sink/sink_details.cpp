@@ -117,8 +117,11 @@ const SinkDetails& GetOutputSinkDetails(Settings::AudioEngine sink_id) {
     }
 
     if (iter == std::end(sink_details)) {
-        LOG_ERROR(Audio, "Invalid sink_id {}", Settings::CanonicalizeEnum(sink_id));
-        iter = find_backend(Settings::AudioEngine::Null);
+        // The requested backend isn't built in (e.g. SDL3 on the S24 build): use the first
+        // available one (cubeb) rather than going silent.
+        LOG_ERROR(Audio, "Invalid sink_id {}, using the default backend",
+                  Settings::CanonicalizeEnum(sink_id));
+        iter = std::begin(sink_details);
     }
 
     return *iter;

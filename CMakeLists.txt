@@ -218,6 +218,7 @@ endif()
 
 # TODO(crueter): Cleanup, each dep that has a bundled option should allow to choose between bundled, external, system
 option(ENABLE_CUBEB "Enables the cubeb audio backend" ON)
+option(ENABLE_SDL3 "Build with SDL3 (backup audio sink; input on desktop). Android can turn this off." ON)
 
 set(EXT_DEFAULT OFF)
 if (MSVC OR ANDROID)

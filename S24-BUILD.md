@@ -36,7 +36,8 @@ This tree is Eden master with changes for the Galaxy S24 / S24+ / S24 Ultra
 - The emulation screen requests the panel's highest refresh rate (120 Hz) at the current resolution.
 
 **Leaner APK**
-- English only; no Vulkan validation layer, web services (public lobby list, telemetry) or ReShade FX.
+- English only; no Vulkan validation layer, web services (public lobby list, telemetry), ReShade FX or SDL3
+  (controllers use Eden's own Android input driver; audio uses cubeb/AAudio).
 
 **New menus**
 - Settings → *Advanced & hidden options*: 55 core settings that had no Android menu
