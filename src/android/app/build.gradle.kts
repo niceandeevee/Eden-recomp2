@@ -238,7 +238,12 @@ android {
                         listOf(
                             "-DGENSHIN_SPOOF=ON",
                             "-DEDEN_S24_TUNING=ON",
-                            "-DYUZU_BUILD_PRESET=sd8gen3"
+                            "-DYUZU_BUILD_PRESET=sd8gen3",
+                            // Leaner S24 build: no Vulkan validation layer in the APK, no web
+                            // services (public lobby list/telemetry), no ReShade FX compiler.
+                            "-DYUZU_DOWNLOAD_ANDROID_VVL=OFF",
+                            "-DENABLE_WEB_SERVICE=OFF",
+                            "-DENABLE_RESHADE=OFF"
                         )
                     )
                 }
