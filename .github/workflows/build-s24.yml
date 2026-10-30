@@ -100,14 +100,14 @@ jobs:
 
       - name: Show build errors
         if: failure()
+        shell: bash
         run: |
-          {
-            grep -n -i -E 'error|FAILED|What went wrong|fatal|undefined|not found' "$RUNNER_TEMP/build.log" | grep -v -E 'Werror|-Wno-|warning:' | head -60
-            echo ---- tail ----
-            tail -40 "$RUNNER_TEMP/build.log"
-          } > "$RUNNER_TEMP/summary.txt" || true
-          msg=$(sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g' "$RUNNER_TEMP/summary.txt" | cut -c1-60000)
-          echo "::error title=Build log excerpt::$msg"
+          L="$RUNNER_TEMP/build.log"
+          enc() { sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g'; }
+          grep -n -E ': error:|CMake Error|What went wrong|FAILURE:|Execution failed|ld.lld: error|Caused by|^-- ! ' "$L" | cut -c1-300 | head -25 | tail -c 3800 > "$RUNNER_TEMP/e1.txt" || true
+          tail -30 "$L" | cut -c1-300 | tail -c 3800 > "$RUNNER_TEMP/e2.txt" || true
+          echo "::error title=Build errors::$(enc < "$RUNNER_TEMP/e1.txt")"
+          echo "::error title=Build tail::$(enc < "$RUNNER_TEMP/e2.txt")"
 
       - name: Rename APK
         run: |
