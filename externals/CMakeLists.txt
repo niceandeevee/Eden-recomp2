@@ -257,7 +257,9 @@ if (MSVC)
 endif()
 
 # Glad
-add_subdirectory(glad)
+if (NOT ANDROID OR ENABLE_OPENGL)
+    add_subdirectory(glad)
+endif()
 
 # libusb
 if (ENABLE_LIBUSB)

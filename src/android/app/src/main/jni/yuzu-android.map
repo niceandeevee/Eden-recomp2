@@ -1,0 +1,8 @@
+/* Export only the JNI entry points from libyuzu-android.so; everything else stays internal so
+   the linker (and LTO) can drop and inline more. */
+{
+  global:
+    Java_*;
+  local:
+    *;
+};

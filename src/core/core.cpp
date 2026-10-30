@@ -589,7 +589,11 @@ bool System::GetNVDECActive() {
 }
 
 void System::InitializeDebugger() {
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+    // No GDB stub on the S24 Android build.
+#else
     impl->InitializeDebugger(*this, Settings::values.gdbstub_port.GetValue());
+#endif
 }
 
 SystemResultStatus System::Load(Frontend::EmuWindow& emu_window, const std::string& filepath,
@@ -919,7 +923,11 @@ bool System::IsMulticore() const {
 }
 
 bool System::DebuggerEnabled() const {
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+    return false; // lets the optimiser drop all GDB stub paths
+#else
     return Settings::values.use_gdbstub.GetValue();
+#endif
 }
 
 Core::Debugger& System::GetDebugger() {

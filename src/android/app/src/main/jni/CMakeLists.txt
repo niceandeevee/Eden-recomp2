@@ -23,12 +23,16 @@ add_library(yuzu-android SHARED
 set_property(TARGET yuzu-android PROPERTY IMPORTED_LOCATION ${FFmpeg_LIBRARY_DIR})
 
 target_link_libraries(yuzu-android PRIVATE audio_core common core input_common frontend_common video_core)
-target_link_libraries(yuzu-android PRIVATE android camera2ndk EGL glad jnigraphics log GLESv2)
+# Vulkan only on Android: no OpenGL loader (glad), EGL or GLES needed.
+target_link_libraries(yuzu-android PRIVATE android camera2ndk jnigraphics log)
 if (ARCHITECTURE_arm64)
     target_link_libraries(yuzu-android PRIVATE adrenotools)
 endif()
 
-target_link_libraries(yuzu-android PRIVATE ${FFmpeg_LIBRARIES} OpenSSL::SSL cpp-jwt::cpp-jwt)
+target_link_libraries(yuzu-android PRIVATE ${FFmpeg_LIBRARIES} OpenSSL::SSL)
+if (TARGET cpp-jwt::cpp-jwt)
+    target_link_libraries(yuzu-android PRIVATE cpp-jwt::cpp-jwt)
+endif()
 if (ENABLE_UPDATE_CHECKER)
     target_compile_definitions(yuzu-android PUBLIC ENABLE_UPDATE_CHECKER)
 endif()
@@ -36,3 +40,12 @@ endif()
 set(CPACK_PACKAGE_EXECUTABLES ${CPACK_PACKAGE_EXECUTABLES} yuzu-android)
 
 target_link_options(yuzu-android PRIVATE "-Wl,-Bsymbolic")
+
+if (EDEN_S24_TUNING)
+    # Export only the JNI entry points; everything else is internal (smaller, better LTO).
+    set(_yuzu_android_map "${CMAKE_CURRENT_SOURCE_DIR}/yuzu-android.map")
+    target_link_options(yuzu-android PRIVATE "-Wl,--version-script=${_yuzu_android_map}")
+    set_property(TARGET yuzu-android APPEND PROPERTY LINK_DEPENDS "${_yuzu_android_map}")
+    # Android 11+ (the S24 build needs Android 14): compact RELR relocation tables.
+    target_link_options(yuzu-android PRIVATE "-Wl,--pack-dyn-relocs=android+relr")
+endif()

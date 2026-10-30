@@ -38,6 +38,8 @@ This tree is Eden master with changes for the Galaxy S24 / S24+ / S24 Ultra
 **Leaner APK**
 - English only; no Vulkan validation layer, web services (public lobby list, telemetry), ReShade FX or SDL3
   (controllers use Eden's own Android input driver; audio uses cubeb/AAudio).
+- No GDB stub, no OpenGL loader/EGL/GLES linkage (Vulkan only).
+- libyuzu-android.so exports only its JNI entry points and uses packed RELR relocations.
 
 **New menus**
 - Settings → *Advanced & hidden options*: 55 core settings that had no Android menu
