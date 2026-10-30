@@ -12,6 +12,8 @@
 #include <cstring>
 #include <locale>
 #include <map>
+#include <mutex>
+#include <chrono>
 #include <set>
 #include <sstream>
 #include <span>
@@ -254,7 +256,44 @@ void EmulationSession::ConfigureFilesystemProviderFromGameFolder(const std::stri
     ConfigureFilesystemProvider(filepath);
 }
 
+#ifdef EDEN_PGO_GENERATE
+// Instrumented (PGO "generate") build: dump the profile counters to <user folder>/eden-pgo.profraw
+// every 30 seconds and whenever emulation stops. Each write overwrites the file with the
+// cumulative counters, so the newest file always holds the whole session.
+extern "C" {
+int __llvm_profile_write_file(void);
+void __llvm_profile_set_filename(const char*);
+}
+namespace {
+std::mutex g_pgo_mutex;
+void PgoWriteProfile() {
+    std::scoped_lock lock{g_pgo_mutex};
+    __llvm_profile_write_file();
+}
+void PgoStart() {
+    static std::once_flag once;
+    std::call_once(once, [] {
+        static const std::string path = Common::FS::PathToUTF8String(
+            Common::FS::GetEdenPath(Common::FS::EdenPath::EdenDir) / "eden-pgo.profraw");
+        __llvm_profile_set_filename(path.c_str());
+        LOG_INFO(Frontend, "PGO profile will be written to {}", path);
+        static std::jthread writer([](std::stop_token token) {
+            while (!token.stop_requested()) {
+                for (int i = 0; i < 30 && !token.stop_requested(); ++i) {
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+                PgoWriteProfile();
+            }
+        });
+    });
+}
+} // namespace
+#endif
+
 void EmulationSession::InitializeSystem(bool reload) {
+#ifdef EDEN_PGO_GENERATE
+    PgoStart();
+#endif
     if (!reload) {
         // Initialize logging system
         Common::Log::Initialize();
@@ -357,6 +396,9 @@ Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string
 }
 
 void EmulationSession::ShutdownEmulation() {
+#ifdef EDEN_PGO_GENERATE
+    PgoWriteProfile();
+#endif
     std::scoped_lock lock(m_mutex);
 
     if (m_next_program_index != -1) {

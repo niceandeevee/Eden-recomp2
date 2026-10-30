@@ -397,6 +397,29 @@ if (CXX_GCC OR CXX_CLANG)
     endif()
 endif()
 
+# Profile-guided optimisation (S24 build)
+# ===========================
+# off      : normal build
+# generate : instrumented build; the app writes eden-pgo.profraw into its user folder
+# use      : optimise using EDEN_PGO_PROFILE (an .profdata merged from the profraw)
+set(EDEN_PGO_MODE "off" CACHE STRING "Profile-guided optimisation: off, generate or use")
+set(EDEN_PGO_PROFILE "" CACHE FILEPATH "Merged .profdata used when EDEN_PGO_MODE=use")
+if (EDEN_PGO_MODE STREQUAL "generate")
+    message(STATUS "PGO: building instrumented binaries")
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-fprofile-generate>)
+    add_link_options(-fprofile-generate)
+    add_compile_definitions(EDEN_PGO_GENERATE)
+elseif (EDEN_PGO_MODE STREQUAL "use")
+    if (NOT EXISTS "${EDEN_PGO_PROFILE}")
+        message(FATAL_ERROR "PGO: EDEN_PGO_PROFILE '${EDEN_PGO_PROFILE}' does not exist")
+    endif()
+    message(STATUS "PGO: optimising with ${EDEN_PGO_PROFILE}")
+    set(_pgo_flags -fprofile-use=${EDEN_PGO_PROFILE} -Wno-profile-instr-unprofiled
+                   -Wno-profile-instr-out-of-date -Wno-backend-plugin)
+    add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:${_pgo_flags}>")
+    add_link_options(-fprofile-use=${EDEN_PGO_PROFILE})
+endif()
+
 # Configure C++ standard
 # ===========================
 

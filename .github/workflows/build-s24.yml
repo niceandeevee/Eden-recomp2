@@ -11,6 +11,11 @@ on:
         description: "Link-time optimization (faster code, longer build). Falls back to a non-LTO build if it fails."
         type: boolean
         default: true
+      pgo:
+        description: "PGO: 'auto' uses a committed profile in pgo/ if present; 'generate' builds the instrumented APK used to record one"
+        type: choice
+        options: [auto, generate, "off"]
+        default: auto
   push:
     branches: [main, master]
     paths-ignore:
@@ -32,7 +37,8 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: "3G"
       CCACHE_COMPRESS: "true"
-      USE_LTO: ${{ github.event_name == 'push' || inputs.lto }}
+      USE_LTO: ${{ (github.event_name == 'push' || inputs.lto) && inputs.pgo != 'generate' }}
+      PGO: ${{ inputs.pgo || 'auto' }}
 
     steps:
       - name: Free disk space
@@ -78,6 +84,34 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('src/android/**/*.gradle.kts', 'src/android/gradle/wrapper/gradle-wrapper.properties') }}
 
+      - name: Prepare PGO
+        shell: bash
+        run: |
+          PGO_ARGS=""
+          if [ "$PGO" = "generate" ]; then
+            PGO_ARGS="-DEDEN_PGO_MODE=generate"
+            echo "::notice::Building the PGO-instrumented APK (slower; used only to record a profile)"
+          elif [ "$PGO" = "auto" ] && ls pgo/* >/dev/null 2>&1; then
+            PROFDATA_BIN="$ANDROID_HOME/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-profdata"
+            work="$RUNNER_TEMP/pgo"; mkdir -p "$work"
+            for f in pgo/*; do
+              case "$f" in
+                *.profdata) cp "$f" "$work/" ;;
+                *.profraw) cp "$f" "$work/" ;;
+                *.xz)  xz -dc "$f" > "$work/$(basename "${f%.xz}")" ;;
+                *.zst) zstd -dc "$f" > "$work/$(basename "${f%.zst}")" ;;
+                *.gz)  gzip -dc "$f" > "$work/$(basename "${f%.gz}")" ;;
+                *.zip) unzip -o -j "$f" -d "$work" ;;
+              esac
+            done
+            ls -l "$work"
+            "$PROFDATA_BIN" merge -o "$RUNNER_TEMP/eden.profdata" $(ls "$work"/*.profraw "$work"/*.profdata 2>/dev/null)
+            "$PROFDATA_BIN" show "$RUNNER_TEMP/eden.profdata" | tail -5
+            PGO_ARGS="-DEDEN_PGO_MODE=use -DEDEN_PGO_PROFILE=$RUNNER_TEMP/eden.profdata"
+            echo "::notice::Using PGO profile from pgo/"
+          fi
+          echo "PGO_ARGS=$PGO_ARGS" >> "$GITHUB_ENV"
+
       - name: Build APK (with LTO)
         id: build_lto
         if: env.USE_LTO == 'true'
@@ -85,7 +119,7 @@ jobs:
         shell: bash
         run: |
           chmod +x .ci/android/build.sh
-          .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON 2>&1 | tee -a "$RUNNER_TEMP/build.log"
+          .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
 
       - name: Build APK (without LTO)
         if: env.USE_LTO != 'true' || steps.build_lto.outcome == 'failure'
@@ -96,7 +130,7 @@ jobs:
             rm -rf build src/android/app/.cxx src/android/app/build artifacts
           fi
           chmod +x .ci/android/build.sh
-          .ci/android/build.sh -t s24 -b Release 2>&1 | tee -a "$RUNNER_TEMP/build.log"
+          .ci/android/build.sh -t s24 -b Release $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
 
       - name: Show build errors
         if: failure()
@@ -114,7 +148,8 @@ jobs:
           ls -l artifacts
           VERSION=$(git describe --always --long | sed -E 's/(-0)?-[^-]+$//')
           mkdir -p upload
-          for f in artifacts/*.apk; do cp "$f" "upload/Eden-S24plus-${VERSION}.apk"; done
+          SUFFIX=""; [ "$PGO" = "generate" ] && SUFFIX="-PGO-INSTRUMENTED"
+          for f in artifacts/*.apk; do cp "$f" "upload/Eden-S24plus-${VERSION}${SUFFIX}.apk"; done
           ls -l upload
 
       - name: Upload APK
