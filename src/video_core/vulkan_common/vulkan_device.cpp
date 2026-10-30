@@ -661,7 +661,17 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
         properties.properties.limits.maxVertexInputBindings = 32;
     }
 
-    const auto dyna_state = Settings::values.dyna_state.GetValue();
+    auto dyna_state = Settings::values.dyna_state.GetValue();
+#ifdef EDEN_S24_TUNING
+    // The S24 build defaults to EDS2 + vertex input dynamic state for Turnip. Qualcomm's
+    // proprietary driver is known to misrender with these, so keep it on the safe path.
+    if (is_qualcomm) {
+        dyna_state = Settings::ExtendedDynamicState::Disabled;
+        RemoveExtensionFeature(extensions.vertex_input_dynamic_state,
+                               features.vertex_input_dynamic_state,
+                               VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+    }
+#endif
     switch (dyna_state) {
     case Settings::ExtendedDynamicState::Disabled:
         // Level 0: Disable all extended dynamic state extensions
@@ -987,7 +997,16 @@ bool Device::ShouldBoostClocks() const {
 
 bool Device::HasTimelineSemaphore() const {
     if (GetDriverID() == VK_DRIVER_ID_MESA_TURNIP) {
+#ifdef EDEN_S24_TUNING
+        // Mesa encodes driverVersion as VK_MAKE_VERSION(major, minor, patch). Timeline
+        // semaphores are solid on Turnip from Mesa 24 onward; using them avoids the
+        // fence-polling fallback thread.
+        if ((GetDriverVersion() >> 22) < 24) {
+            return false;
+        }
+#else
         return false;
+#endif
     }
     return features.timeline_semaphore.timelineSemaphore;
 }

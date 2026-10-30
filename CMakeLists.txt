@@ -368,13 +368,19 @@ if (CXX_GCC OR CXX_CLANG)
             # functions as non-interposable so intra-library calls are direct branches rather
             # than PLT stubs, skip errno bookkeeping in libm calls, and call libc through the GOT.
             # (No -ffast-math: emulated floating point must stay IEEE-exact.)
-            set(_sd8gen3_cflags "-fno-semantic-interposition -fno-math-errno -fno-plt -ffunction-sections -fdata-sections")
+            # Release-only leanness: no frame-pointer bookkeeping, no PAC/BTI branch protection,
+            # no stack canaries and no FORTIFY checks in hot memcpy/memset paths.
+            set(_sd8gen3_cflags "-fno-semantic-interposition -fno-math-errno -fno-plt -ffunction-sections -fdata-sections -fomit-frame-pointer -mbranch-protection=none -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_sd8gen3_cflags}")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_sd8gen3_cflags}")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_sd8gen3_cflags} -fvisibility-inlines-hidden")
             # Bind intra-library function references at link time, drop unused sections, fold
             # identical code (address-significance aware) and optimise the hash tables. Smaller
             # hot code = better use of the Cortex-X4/A720 instruction caches.
             set(_sd8gen3_ldflags "-Wl,-Bsymbolic-functions -Wl,--gc-sections -Wl,--icf=safe -Wl,-O2")
+            if (ENABLE_LTO)
+                # Run the full -O3 pipeline in the ThinLTO backend too (default is -O2).
+                string(APPEND _sd8gen3_ldflags " -Wl,--lto-O3")
+            endif()
             set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${_sd8gen3_ldflags}")
             set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_sd8gen3_ldflags}")
         endif()

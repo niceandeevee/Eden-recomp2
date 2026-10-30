@@ -264,7 +264,12 @@ struct Values {
 #endif
                                                     "cpu_backend",
                                                     Category::Cpu};
-    SwitchableSetting<CpuAccuracy, true> cpu_accuracy{linkage, CpuAccuracy::Auto,
+    SwitchableSetting<CpuAccuracy, true> cpu_accuracy{linkage,
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+                                                      CpuAccuracy::Unsafe,
+#else
+                                                      CpuAccuracy::Auto,
+#endif
                                                       "cpu_accuracy", Category::Cpu};
     SwitchableSetting<CpuClock> cpu_clock{linkage,
                                               CpuClock::Normal,
@@ -516,7 +521,11 @@ struct Values {
     GpuAccuracy current_gpu_accuracy{GpuAccuracy::High};
 
     SwitchableSetting<DmaAccuracy, true> dma_accuracy{linkage,
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+                                                      DmaAccuracy::Unsafe,
+#else
                                                       DmaAccuracy::Default,
+#endif
                                                       "dma_accuracy",
                                                       Category::RendererAdvanced,
                                                       Specialization::Default,
@@ -649,7 +658,11 @@ struct Values {
                                           true};
 
     SwitchableSetting<bool> skip_cpu_inner_invalidation{linkage,
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+                                                        true,
+#else
                                                         false,
+#endif
                                                         "skip_cpu_inner_invalidation",
                                                         Category::RendererHacks,
                                                         Specialization::Default,
@@ -700,7 +713,12 @@ struct Values {
                                                   Category::RendererHacks};
 
     SwitchableSetting<ExtendedDynamicState> dyna_state{linkage,
-#if defined(__ANDROID__)
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+                                           // Turnip on Adreno 750 handles EDS1+2 well; fewer
+                                           // pipeline variants = fewer shader compiles/stutter.
+                                           // Clamped back to Disabled on Qualcomm's stock driver.
+                                           ExtendedDynamicState::EDS2,
+#elif defined(__ANDROID__)
                                            ExtendedDynamicState::Disabled,
 #elif defined(__APPLE__)
                                            ExtendedDynamicState::Disabled,
@@ -719,7 +737,9 @@ struct Values {
                                                 Specialization::Scalar};
 
     SwitchableSetting<bool> vertex_input_dynamic_state{linkage,
-#ifdef __ANDROID__
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+                                                       true,
+#elif defined(__ANDROID__)
                                                        false,
 #else
                                                        true,

@@ -22,6 +22,18 @@ This tree is Eden master with changes for the Galaxy S24 / S24+ / S24 Ultra
 - VRAM usage: Aggressive (the S24+ has 12 GB)
 - NVDEC video decoding: GPU
 - Shader pipeline worker threads: 4
+- CPU accuracy: Unsafe (only affects the Dynarmic JIT, i.e. 32-bit games; 64-bit games run natively via NCE)
+- DMA accuracy: Unsafe
+- Skip CPU inner invalidation: on
+- Extended dynamic state: EDS2, vertex input dynamic state: on (fewer pipelines and shader compiles on Turnip;
+  automatically turned off when running on Qualcomm's stock driver)
+
+**Turnip**
+- Timeline semaphores are used on Turnip (Mesa 24+) instead of the fence-polling fallback thread.
+
+**Release flags (sd8gen3)**
+- `-fomit-frame-pointer -mbranch-protection=none -fno-stack-protector -D_FORTIFY_SOURCE=0`,
+  `-fvisibility-inlines-hidden`, and `--lto-O3` for the ThinLTO backend.
 
 **Runtime**
 - The emulation screen requests the panel's highest refresh rate (120 Hz) at the current resolution.
