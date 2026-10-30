@@ -28,9 +28,6 @@ This tree is Eden master with changes for the Galaxy S24 / S24+ / S24 Ultra
 - Extended dynamic state: EDS2, vertex input dynamic state: on (fewer pipelines and shader compiles on Turnip;
   automatically turned off when running on Qualcomm's stock driver)
 
-**Turnip**
-- Timeline semaphores are used on Turnip (Mesa 24+) instead of the fence-polling fallback thread.
-
 **Release flags (sd8gen3)**
 - `-fomit-frame-pointer -mbranch-protection=none -fno-stack-protector -D_FORTIFY_SOURCE=0`,
   `-fvisibility-inlines-hidden`, and `--lto-O3` for the ThinLTO backend.

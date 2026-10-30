@@ -996,17 +996,10 @@ bool Device::ShouldBoostClocks() const {
 }
 
 bool Device::HasTimelineSemaphore() const {
+    // Turnip: timeline semaphores can leave a wait that never signals (seen as a freeze when
+    // closing a game), so keep the fence-based path that upstream uses.
     if (GetDriverID() == VK_DRIVER_ID_MESA_TURNIP) {
-#ifdef EDEN_S24_TUNING
-        // Mesa encodes driverVersion as VK_MAKE_VERSION(major, minor, patch). Timeline
-        // semaphores are solid on Turnip from Mesa 24 onward; using them avoids the
-        // fence-polling fallback thread.
-        if ((GetDriverVersion() >> 22) < 24) {
-            return false;
-        }
-#else
         return false;
-#endif
     }
     return features.timeline_semaphore.timelineSemaphore;
 }

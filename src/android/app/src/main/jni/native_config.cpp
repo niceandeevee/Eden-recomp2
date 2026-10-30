@@ -34,13 +34,15 @@ static void ResetFxChainToGlobal() {}
 template <typename T>
 Settings::Setting<T>* getSetting(JNIEnv* env, jstring jkey) {
     auto key = Common::Android::GetJString(env, jkey);
-    auto basic_setting = Settings::values.linkage.by_key[key];
-    if (basic_setting != 0) {
-        return static_cast<Settings::Setting<T>*>(basic_setting);
+    // Use find() rather than operator[]: operator[] inserts a null entry for unknown keys, which
+    // mutates the shared settings map and races with other threads reading it.
+    const auto& core_keys = Settings::values.linkage.by_key;
+    if (const auto it = core_keys.find(key); it != core_keys.end() && it->second != nullptr) {
+        return static_cast<Settings::Setting<T>*>(it->second);
     }
-    auto basic_android_setting = AndroidSettings::values.linkage.by_key[key];
-    if (basic_android_setting != 0) {
-        return static_cast<Settings::Setting<T>*>(basic_android_setting);
+    const auto& android_keys = AndroidSettings::values.linkage.by_key;
+    if (const auto it = android_keys.find(key); it != android_keys.end() && it->second != nullptr) {
+        return static_cast<Settings::Setting<T>*>(it->second);
     }
     LOG_ERROR(Frontend, "[Android Native] Could not find setting - {}", key);
     return nullptr;

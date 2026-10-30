@@ -447,7 +447,6 @@
         <item>@string/app_language_persian</item>
         <item>@string/app_language_hebrew</item>
         <item>@string/app_language_serbian</item>
-        <item>@string/app_language_thai</item>
     </string-array>
     <integer-array name="appLanguageValues">
         <item>0</item>
