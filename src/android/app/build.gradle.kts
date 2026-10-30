@@ -60,10 +60,13 @@ android {
     }
 
     androidResources {
-        generateLocaleConfig = true
+        // English-only build: no per-app language list needed.
+        generateLocaleConfig = false
     }
 
     defaultConfig {
+        // Keep only English resources, including those pulled in from AndroidX/Material libraries.
+        resourceConfigurations += listOf("en")
         applicationId = "dev.eden.eden_emulator"
         minSdk = 24
         targetSdk = 36
@@ -143,6 +146,7 @@ android {
             }
 
             isMinifyEnabled = true
+            isShrinkResources = true
             isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
