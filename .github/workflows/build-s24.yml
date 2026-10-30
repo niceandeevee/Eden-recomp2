@@ -84,7 +84,7 @@ jobs:
         continue-on-error: true
         run: |
           chmod +x .ci/android/build.sh
-          .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON
+          .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON 2>&1 | tee -a "$RUNNER_TEMP/build.log"
 
       - name: Build APK (without LTO)
         if: env.USE_LTO != 'true' || steps.build_lto.outcome == 'failure'
@@ -94,7 +94,18 @@ jobs:
             rm -rf build src/android/app/.cxx src/android/app/build artifacts
           fi
           chmod +x .ci/android/build.sh
-          .ci/android/build.sh -t s24 -b Release
+          .ci/android/build.sh -t s24 -b Release 2>&1 | tee -a "$RUNNER_TEMP/build.log"
+
+      - name: Show build errors
+        if: failure()
+        run: |
+          {
+            grep -n -i -E 'error|FAILED|What went wrong|fatal|undefined|not found' "$RUNNER_TEMP/build.log" | grep -v -E 'Werror|-Wno-|warning:' | head -60
+            echo ---- tail ----
+            tail -40 "$RUNNER_TEMP/build.log"
+          } > "$RUNNER_TEMP/summary.txt" || true
+          msg=$(sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g' "$RUNNER_TEMP/summary.txt" | cut -c1-60000)
+          echo "::error title=Build log excerpt::$msg"
 
       - name: Rename APK
         run: |
