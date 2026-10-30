@@ -48,4 +48,9 @@ if (EDEN_S24_TUNING)
     set_property(TARGET yuzu-android APPEND PROPERTY LINK_DEPENDS "${_yuzu_android_map}")
     # Android 11+ (the S24 build needs Android 14): compact RELR relocation tables.
     target_link_options(yuzu-android PRIVATE "-Wl,--pack-dyn-relocs=android+relr")
+    # Keep .text.hot / .text.unlikely etc. as separate groups so PGO-hot code is packed together.
+    target_link_options(yuzu-android PRIVATE "-Wl,-z,keep-text-section-prefix")
+    # JNI entry points must stay visible to Java.
+    set_target_properties(yuzu-android PROPERTIES
+        C_VISIBILITY_PRESET default CXX_VISIBILITY_PRESET default VISIBILITY_INLINES_HIDDEN OFF)
 endif()

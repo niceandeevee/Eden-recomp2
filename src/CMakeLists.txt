@@ -254,6 +254,15 @@ else()
     endif()
 endif()
 
+if (EDEN_S24_TUNING AND ANDROID)
+    # Engine libraries are all linked into libyuzu-android.so and never exported, so give them
+    # hidden visibility: globals are then accessed directly instead of through the GOT.
+    # (The JNI library below switches back to default visibility.)
+    set(CMAKE_C_VISIBILITY_PRESET hidden)
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+endif()
+
 add_subdirectory(common)
 add_subdirectory(network)
 
