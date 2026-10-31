@@ -51,6 +51,8 @@
 
 #endif // ^^^ POSIX ^^^
 
+#include <atomic>
+#include <cerrno>
 #include <mutex>
 #include <random>
 
@@ -644,6 +646,21 @@ public:
         }
 #endif
         int ret = mprotect(virtual_base + virtual_offset, length, flags);
+#ifdef __ANDROID__
+        if (ret != 0 && errno == ENOMEM) {
+            // Android caps a process at vm.max_map_count (65530) mappings. GPU-cache tracking
+            // re-protects many small ranges, and each split adds mappings; once the cap is hit
+            // mprotect fails with ENOMEM. Skipping the change is far better than aborting: a
+            // missed relax just sends that access down the slow (checked) path, a missed
+            // restrict at worst lets the GPU see slightly stale data.
+            static std::atomic_bool warned{false};
+            if (!warned.exchange(true)) {
+                LOG_ERROR(HW_Memory, "mprotect hit the process memory-map limit; skipping "
+                                     "protection changes from now on when this happens");
+            }
+            return;
+        }
+#endif
         ASSERT_MSG(ret == 0, "mprotect failed: {}", strerror(errno));
     }
 

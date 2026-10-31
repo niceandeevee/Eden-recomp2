@@ -8,6 +8,7 @@
 #include "video_core/vulkan_common/vma.h"
 
 #include <codecvt>
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <locale>
@@ -266,17 +267,30 @@ void __llvm_profile_set_filename(const char*);
 }
 namespace {
 std::mutex g_pgo_mutex;
+std::string g_pgo_path;
 void PgoWriteProfile() {
     std::scoped_lock lock{g_pgo_mutex};
+    if (g_pgo_path.empty()) {
+        return;
+    }
+    // The LLVM runtime truncates the file only once (when the filename is first set) and then
+    // *appends* on every write, so each periodic dump added a full copy (the file grew past
+    // 1 GB). Truncate it ourselves first so it always holds exactly one up-to-date profile.
+    if (::truncate(g_pgo_path.c_str(), 0) != 0 && errno != ENOENT) {
+        LOG_WARNING(Frontend, "PGO: could not truncate {}: {}", g_pgo_path, strerror(errno));
+    }
     __llvm_profile_write_file();
 }
 void PgoStart() {
     static std::once_flag once;
     std::call_once(once, [] {
-        static const std::string path = Common::FS::PathToUTF8String(
-            Common::FS::GetEdenPath(Common::FS::EdenPath::EdenDir) / "eden-pgo.profraw");
-        __llvm_profile_set_filename(path.c_str());
-        LOG_INFO(Frontend, "PGO profile will be written to {}", path);
+        {
+            std::scoped_lock lock{g_pgo_mutex};
+            g_pgo_path = Common::FS::PathToUTF8String(
+                Common::FS::GetEdenPath(Common::FS::EdenPath::EdenDir) / "eden-pgo.profraw");
+            __llvm_profile_set_filename(g_pgo_path.c_str());
+        }
+        LOG_INFO(Frontend, "PGO profile will be written to {}", g_pgo_path);
         static std::jthread writer([](std::stop_token token) {
             while (!token.stop_requested()) {
                 for (int i = 0; i < 60 && !token.stop_requested(); ++i) {
