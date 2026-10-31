@@ -258,7 +258,7 @@ void EmulationSession::ConfigureFilesystemProviderFromGameFolder(const std::stri
 
 #ifdef EDEN_PGO_GENERATE
 // Instrumented (PGO "generate") build: dump the profile counters to <user folder>/eden-pgo.profraw
-// every 30 seconds and whenever emulation stops. Each write overwrites the file with the
+// every 60 seconds and whenever emulation stops. Each write overwrites the file with the
 // cumulative counters, so the newest file always holds the whole session.
 extern "C" {
 int __llvm_profile_write_file(void);
@@ -279,7 +279,7 @@ void PgoStart() {
         LOG_INFO(Frontend, "PGO profile will be written to {}", path);
         static std::jthread writer([](std::stop_token token) {
             while (!token.stop_requested()) {
-                for (int i = 0; i < 30 && !token.stop_requested(); ++i) {
+                for (int i = 0; i < 60 && !token.stop_requested(); ++i) {
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                 }
                 PgoWriteProfile();

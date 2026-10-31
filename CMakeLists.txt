@@ -407,7 +407,11 @@ set(EDEN_PGO_MODE "off" CACHE STRING "Profile-guided optimisation: off, generate
 set(EDEN_PGO_PROFILE "" CACHE FILEPATH "Merged .profdata used when EDEN_PGO_MODE=use")
 if (EDEN_PGO_MODE STREQUAL "generate")
     message(STATUS "PGO: building instrumented binaries")
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-fprofile-generate>)
+    # Edge counters only: value profiling (indirect-call / memop targets) keeps linked lists that
+    # other threads mutate while the profile is being written, which crashed the app mid-game.
+    set(_pgo_gen_flags "-fprofile-generate -mllvm -disable-vp=true -mllvm -pgo-instr-memop=false")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_pgo_gen_flags}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_pgo_gen_flags}")
     add_link_options(-fprofile-generate)
     add_compile_definitions(EDEN_PGO_GENERATE)
 elseif (EDEN_PGO_MODE STREQUAL "use")
