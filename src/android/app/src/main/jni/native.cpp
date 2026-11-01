@@ -11,6 +11,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <locale>
 #include <map>
 #include <mutex>
@@ -258,9 +259,11 @@ void EmulationSession::ConfigureFilesystemProviderFromGameFolder(const std::stri
 }
 
 #ifdef EDEN_PGO_GENERATE
-// Instrumented (PGO "generate") build: dump the profile counters to <user folder>/eden-pgo.profraw
-// every 60 seconds and whenever emulation stops. Each write overwrites the file with the
-// cumulative counters, so the newest file always holds the whole session.
+// Instrumented (PGO "generate") build. Profiling output only starts once a game is launched, and
+// every game session gets its own file: <user folder>/eden-pgo-YYYYMMDD-HHMMSS.profraw. (Writing
+// from app start meant that reopening Eden - or the file picker starting Eden's document provider -
+// overwrote a gameplay profile with game-list-only counters.) The file is rewritten every 60 s
+// and when emulation stops, always holding one complete, cumulative profile.
 extern "C" {
 int __llvm_profile_write_file(void);
 void __llvm_profile_set_filename(const char*);
@@ -271,43 +274,41 @@ std::string g_pgo_path;
 void PgoWriteProfile() {
     std::scoped_lock lock{g_pgo_mutex};
     if (g_pgo_path.empty()) {
-        return;
+        return; // no game has run in this process yet
     }
-    // The LLVM runtime truncates the file only once (when the filename is first set) and then
-    // *appends* on every write, so each periodic dump added a full copy (the file grew past
-    // 1 GB). Truncate it ourselves first so it always holds exactly one up-to-date profile.
+    // The LLVM runtime truncates only when a new filename is set and otherwise *appends*;
+    // truncate first so the file never accumulates copies.
     if (::truncate(g_pgo_path.c_str(), 0) != 0 && errno != ENOENT) {
         LOG_WARNING(Frontend, "PGO: could not truncate {}: {}", g_pgo_path, strerror(errno));
     }
     __llvm_profile_write_file();
 }
-void PgoStart() {
-    static std::once_flag once;
-    std::call_once(once, [] {
-        {
-            std::scoped_lock lock{g_pgo_mutex};
-            g_pgo_path = Common::FS::PathToUTF8String(
-                Common::FS::GetEdenPath(Common::FS::EdenPath::EdenDir) / "eden-pgo.profraw");
-            __llvm_profile_set_filename(g_pgo_path.c_str());
-        }
-        LOG_INFO(Frontend, "PGO profile will be written to {}", g_pgo_path);
-        static std::jthread writer([](std::stop_token token) {
-            while (!token.stop_requested()) {
-                for (int i = 0; i < 60 && !token.stop_requested(); ++i) {
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
-                PgoWriteProfile();
+void PgoBeginGameSession() {
+    {
+        std::scoped_lock lock{g_pgo_mutex};
+        const std::time_t now = std::time(nullptr);
+        std::tm tm{};
+        localtime_r(&now, &tm);
+        char name[64];
+        std::strftime(name, sizeof(name), "eden-pgo-%Y%m%d-%H%M%S.profraw", &tm);
+        g_pgo_path = Common::FS::PathToUTF8String(
+            Common::FS::GetEdenPath(Common::FS::EdenPath::EdenDir) / name);
+        __llvm_profile_set_filename(g_pgo_path.c_str());
+    }
+    LOG_INFO(Frontend, "PGO profile for this game session: {}", g_pgo_path);
+    static std::jthread writer([](std::stop_token token) {
+        while (!token.stop_requested()) {
+            for (int i = 0; i < 60 && !token.stop_requested(); ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
             }
-        });
+            PgoWriteProfile();
+        }
     });
 }
 } // namespace
 #endif
 
 void EmulationSession::InitializeSystem(bool reload) {
-#ifdef EDEN_PGO_GENERATE
-    PgoStart();
-#endif
     if (!reload) {
         // Initialize logging system
         Common::Log::Initialize();
@@ -461,6 +462,9 @@ void EmulationSession::HaltEmulation() {
 }
 
 void EmulationSession::RunEmulation() {
+#ifdef EDEN_PGO_GENERATE
+    PgoBeginGameSession();
+#endif
     {
         std::scoped_lock lock(m_mutex);
         m_is_running = true;
