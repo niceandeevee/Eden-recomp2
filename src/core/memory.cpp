@@ -453,7 +453,19 @@ struct Memory::Impl {
             return;
         }
 
-        if (current_page_table->fastmem_arena) {
+#ifdef __ANDROID__
+        // Android limits a process to vm.max_map_count (65530) mappings. Write-protecting cached
+        // regions page by page splits the fastmem arena into a mapping per protected/unprotected
+        // boundary, and BotW reaches the limit within minutes (then any mmap fails, e.g. when
+        // dying or fast travelling). Protect in coarse blocks instead (see ProtectCachedBlocks).
+        const bool coarse_protect = current_page_table->fastmem_arena != nullptr &&
+                                    !Settings::values.use_reactive_flushing.GetValue();
+#else
+        constexpr bool coarse_protect = false;
+#endif
+        const u64 original_vaddr = vaddr;
+
+        if (current_page_table->fastmem_arena && !coarse_protect) {
             Common::MemoryPermission perm{};
             if (!Settings::values.use_reactive_flushing.GetValue() || !cached) {
                 perm |= Common::MemoryPermission::Read;
@@ -517,6 +529,65 @@ struct Memory::Impl {
                 }
                 default:
                     UNREACHABLE();
+                }
+            }
+        }
+
+        if (coarse_protect) {
+            ProtectCachedBlocks(original_vaddr, size);
+        }
+    }
+
+    /// Android: re-protect the fastmem arena around [vaddr, vaddr + size) at block granularity.
+    /// A block is write-protected while any page in it is rasterizer-cached and fully writable
+    /// once none are. Writes to uncached pages that share a block with a cached page fault and
+    /// take the checked slow path, which handles them correctly. Unmapped and debug pages are
+    /// never touched, so their protections stay exactly as they were.
+    void ProtectCachedBlocks(u64 vaddr, u64 size) {
+        constexpr u64 BlockBits = 16; // 64 KiB
+        constexpr u64 BlockSize = 1ULL << BlockBits;
+        constexpr u64 PagesPerBlock = BlockSize >> YUZU_PAGEBITS;
+
+        const u64 max_addr = 1ULL << current_page_table->GetAddressSpaceBits();
+        const u64 begin = vaddr & ~(BlockSize - 1);
+        const u64 end = (std::min)((vaddr + size + BlockSize - 1) & ~(BlockSize - 1), max_addr);
+        if (begin >= end) {
+            return;
+        }
+        current_page_table->entries.CommitRegion(begin >> YUZU_PAGEBITS, end >> YUZU_PAGEBITS);
+
+        for (u64 block = begin; block < end; block += BlockSize) {
+            bool any_cached = false;
+            for (u64 i = 0; i < PagesPerBlock; ++i) {
+                const auto& entry =
+                    current_page_table->entries.GetUnchecked((block >> YUZU_PAGEBITS) + i);
+                if (entry.Type() == Common::PageType::RasterizerCachedMemory) {
+                    any_cached = true;
+                    break;
+                }
+            }
+            const auto perm = any_cached ? Common::MemoryPermission::Read
+                                         : Common::MemoryPermission::ReadWrite;
+
+            // Protect each run of ordinary/cached pages inside the block.
+            u64 run_start = 0;
+            bool in_run = false;
+            for (u64 i = 0; i <= PagesPerBlock; ++i) {
+                bool usable = false;
+                if (i < PagesPerBlock) {
+                    const auto type =
+                        current_page_table->entries.GetUnchecked((block >> YUZU_PAGEBITS) + i)
+                            .Type();
+                    usable = type == Common::PageType::Memory ||
+                             type == Common::PageType::RasterizerCachedMemory;
+                }
+                const u64 page_addr = block + (i << YUZU_PAGEBITS);
+                if (usable && !in_run) {
+                    run_start = page_addr;
+                    in_run = true;
+                } else if (!usable && in_run) {
+                    host_buffer->Protect(run_start, page_addr - run_start, perm);
+                    in_run = false;
                 }
             }
         }
