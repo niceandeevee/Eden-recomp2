@@ -964,7 +964,14 @@ struct Values {
 
     // Miscellaneous
     Setting<std::string> log_filter{linkage, "*:Info", "log_filter", Category::Miscellaneous};
-    Setting<bool> log_flush_line{linkage, false, "flush_line", Category::Miscellaneous, Specialization::Default, true, true};
+    // S24 build: write every log line straight to the file so a crash can't lose the last lines.
+    Setting<bool> log_flush_line{linkage,
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+                                 true,
+#else
+                                 false,
+#endif
+                                 "flush_line", Category::Miscellaneous, Specialization::Default, true, true};
     Setting<bool> censor_username{linkage, true, "censor_username", Category::Miscellaneous};
     Setting<bool> first_launch{linkage, true, "first_launch", Category::Miscellaneous};
 
