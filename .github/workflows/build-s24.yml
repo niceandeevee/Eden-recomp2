@@ -73,8 +73,11 @@ jobs:
           path: |
             .ccache
             .cache/cpm
-          key: s24-${{ runner.os }}-${{ github.sha }}
-          restore-keys: s24-${{ runner.os }}-
+          # One cache per build type: instrumented (pgo=generate) and normal/PGO builds use
+          # different compiler flags and can't reuse each other's objects. Sharing one cache meant
+          # alternating builds restored the wrong one and recompiled everything (~30 min).
+          key: s24-${{ runner.os }}-${{ inputs.pgo == 'generate' && 'gen' || 'opt' }}-${{ github.sha }}
+          restore-keys: s24-${{ runner.os }}-${{ inputs.pgo == 'generate' && 'gen' || 'opt' }}-
 
       - name: Restore Gradle cache
         uses: actions/cache@v4
