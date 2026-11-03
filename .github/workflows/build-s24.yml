@@ -168,6 +168,24 @@ jobs:
           msg=$( { echo "compressed  uncompressed  path"; cat "$RUNNER_TEMP/sizes.txt"; } | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
           echo "::notice title=APK size breakdown::$msg"
 
+      - name: Collect native symbols
+        continue-on-error: true
+        shell: bash
+        run: |
+          # Unstripped libyuzu-android.so, for turning crash-report addresses into function names.
+          mkdir -p symbols
+          f=$(find src/android/app/build -path '*merged_native_libs*' -name libyuzu-android.so | head -1)
+          [ -n "$f" ] && cp "$f" symbols/ && ls -l symbols
+
+      - name: Upload native symbols
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: Eden-S24plus-symbols
+          path: symbols/*.so
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:

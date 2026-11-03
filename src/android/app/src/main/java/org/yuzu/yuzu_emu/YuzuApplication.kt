@@ -6,7 +6,10 @@
 
 package org.yuzu.yuzu_emu
 
+import android.app.ActivityManager
 import android.app.Application
+import android.app.ApplicationExitInfo
+import android.os.Build
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -60,6 +63,7 @@ class YuzuApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         application = this
+        recordPreviousExit()
         documentsTree = DocumentsTree()
         DirectoryInitialization.start()
 
@@ -76,6 +80,65 @@ class YuzuApplication : Application() {
         ControllerNavigationGlobalHook.install(this)
 
         createNotificationChannels()
+    }
+
+    /**
+     * Saves why Eden's previous processes ended (crash, low-memory kill, normal exit...) to
+     * last-exit.txt in the user folder, plus the system's native crash report for the most recent
+     * native crash as last-native-crash.pb. Crashes that kill the process outright (signals,
+     * Android's low-memory killer) leave nothing in Eden's own log.
+     */
+    private fun recordPreviousExit() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return
+        }
+        try {
+            val dir = getExternalFilesDir(null) ?: return
+            val am = getSystemService(ActivityManager::class.java) ?: return
+            val exits = am.getHistoricalProcessExitReasons(packageName, 0, 5)
+            if (exits.isEmpty()) {
+                return
+            }
+            val reasons = mapOf(
+                ApplicationExitInfo.REASON_EXIT_SELF to "EXIT_SELF",
+                ApplicationExitInfo.REASON_SIGNALED to "SIGNALED",
+                ApplicationExitInfo.REASON_LOW_MEMORY to "LOW_MEMORY",
+                ApplicationExitInfo.REASON_CRASH to "CRASH (Java)",
+                ApplicationExitInfo.REASON_CRASH_NATIVE to "CRASH_NATIVE",
+                ApplicationExitInfo.REASON_ANR to "ANR",
+                ApplicationExitInfo.REASON_INITIALIZATION_FAILURE to "INITIALIZATION_FAILURE",
+                ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE to "EXCESSIVE_RESOURCE_USAGE",
+                ApplicationExitInfo.REASON_USER_REQUESTED to "USER_REQUESTED",
+                ApplicationExitInfo.REASON_USER_STOPPED to "USER_STOPPED",
+                ApplicationExitInfo.REASON_OTHER to "OTHER"
+            )
+            val text = StringBuilder()
+            for (info in exits) {
+                text.append("time=").append(java.util.Date(info.timestamp))
+                    .append(" reason=").append(reasons[info.reason] ?: info.reason.toString())
+                    .append(" status=").append(info.status)
+                    .append(" pss_kb=").append(info.pss)
+                    .append(" rss_kb=").append(info.rss)
+                    .append(" description=").append(info.description ?: "")
+                    .append('\n')
+            }
+            File(dir, "last-exit.txt").writeText(text.toString())
+
+            val nativeCrash = exits.firstOrNull {
+                it.reason == ApplicationExitInfo.REASON_CRASH_NATIVE ||
+                    it.reason == ApplicationExitInfo.REASON_ANR
+            }
+            nativeCrash?.traceInputStream?.use { input ->
+                val name = if (nativeCrash.reason == ApplicationExitInfo.REASON_ANR) {
+                    "last-anr.txt"
+                } else {
+                    "last-native-crash.pb"
+                }
+                FileOutputStream(File(dir, name)).use { output -> input.copyTo(output) }
+            }
+        } catch (e: Exception) {
+            // Diagnostics only; never block startup.
+        }
     }
 
     companion object {
