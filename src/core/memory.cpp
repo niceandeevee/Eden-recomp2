@@ -458,8 +458,11 @@ struct Memory::Impl {
         // regions page by page splits the fastmem arena into a mapping per protected/unprotected
         // boundary, and BotW reaches the limit within minutes (then any mmap fails, e.g. when
         // dying or fast travelling). Protect in coarse blocks instead (see ProtectCachedBlocks).
+        // Not under NCE: there guest code runs straight from these pages, and re-protecting whole
+        // blocks would strip execute permission from code that shares a block with cached data.
         const bool coarse_protect = current_page_table->fastmem_arena != nullptr &&
-                                    !Settings::values.use_reactive_flushing.GetValue();
+                                    !Settings::values.use_reactive_flushing.GetValue() &&
+                                    !Settings::IsNceEnabled();
 #else
         constexpr bool coarse_protect = false;
 #endif

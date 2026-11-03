@@ -51,6 +51,7 @@ public:
     void Protect(size_t virtual_offset, size_t length, MemoryPermission perms);
 
     void EnableDirectMappedAddress();
+    void DisableDirectMappedAddress();
 
     void ClearBackingRegion(size_t physical_offset, size_t length, u32 fill_value);
 
@@ -84,6 +85,7 @@ private:
     u8* backing_base{};
     u8* virtual_base{};
     size_t virtual_base_offset{};
+    bool direct_mapped{}; ///< Set while an NCE title uses direct (host == guest) addressing
     // Windows requires it for kernels whom lack proper support for some functions!
     bool fallback_buffer{false};
 };

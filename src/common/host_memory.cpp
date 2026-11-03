@@ -238,6 +238,8 @@ public:
         UNREACHABLE();
     }
 
+    void DisableDirectMappedAddress() {}
+
     const size_t backing_size; ///< Size of the backing memory in bytes
     const size_t virtual_size; ///< Size of the virtual address placeholder in bytes
 
@@ -665,8 +667,19 @@ public:
     }
 
     void EnableDirectMappedAddress() {
+        if (virtual_base != nullptr) {
+            saved_virtual_base = virtual_base;
+        }
         virtual_base = nullptr;
     }
+
+    void DisableDirectMappedAddress() {
+        if (virtual_base == nullptr && saved_virtual_base != nullptr) {
+            virtual_base = saved_virtual_base;
+        }
+    }
+
+    u8* saved_virtual_base{}; ///< Placeholder base to restore after an NCE (direct-mapped) title
 
     const size_t backing_size; ///< Size of the backing memory in bytes
     const size_t virtual_size; ///< Size of the virtual address placeholder in bytes
@@ -813,9 +826,22 @@ void HostMemory::ClearBackingRegion(size_t physical_offset, size_t length, u32 f
 
 void HostMemory::EnableDirectMappedAddress() {
 #if !(defined(__OPENORBIS__) || defined(__managarm__))
-    if (impl) {
+    if (impl && !direct_mapped) {
         impl->EnableDirectMappedAddress();
         virtual_size += reinterpret_cast<uintptr_t>(virtual_base);
+        direct_mapped = true;
+    }
+#endif
+}
+
+void HostMemory::DisableDirectMappedAddress() {
+#if !(defined(__OPENORBIS__) || defined(__managarm__))
+    // An NCE title leaves the buffer direct-mapped; a following non-NCE title started in the same
+    // app session must go back to offset-based mapping, or every mmap gets an invalid address.
+    if (impl && direct_mapped) {
+        impl->DisableDirectMappedAddress();
+        virtual_size -= reinterpret_cast<uintptr_t>(virtual_base);
+        direct_mapped = false;
     }
 #endif
 }

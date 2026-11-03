@@ -187,6 +187,12 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
         metadata.GetAddressSpaceType() == FileSys::ProgramAddressSpaceType::Is39Bit;
     const bool is_application = metadata.GetPoolPartition() == FileSys::PoolPartition::Application;
     Settings::SetNceEnabled(is_39bit);
+    if (is_application && !Settings::IsNceEnabled()) {
+        // An NCE title run earlier in this app session leaves the device memory buffer
+        // direct-mapped; switch back before this (non-NCE) process maps any memory, otherwise
+        // every mmap gets an invalid address (black screen / "mmap: Invalid argument").
+        system.DeviceMemory().buffer.DisableDirectMappedAddress();
+    }
 
     const std::array static_modules = {"rtld",    "main",    "subsdk0", "subsdk1", "subsdk2",
                                        "subsdk3", "subsdk4", "subsdk5", "subsdk6", "subsdk7",
