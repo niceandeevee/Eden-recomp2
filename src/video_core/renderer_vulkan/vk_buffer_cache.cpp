@@ -411,8 +411,11 @@ u32 BufferCacheRuntime::GetStorageBufferAlignment() const {
 }
 
 void BufferCacheRuntime::TickFrame(Common::SlotVector<Buffer>& slot_buffers) noexcept {
+    // Read the GPU's completed tick once per frame instead of once per buffer (an atomic load
+    // each). The tick only moves forward, so this can only mark slightly fewer buffers free.
+    const u64 known_gpu_tick = scheduler.KnownGpuTick();
     for (auto it = slot_buffers.begin(); it != slot_buffers.end(); it++) {
-        if (scheduler.IsFree(it->LastUsageTick())) {
+        if (known_gpu_tick >= it->LastUsageTick()) {
             it->ResetUsageTracking();
         }
     }

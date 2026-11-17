@@ -125,6 +125,11 @@ public:
     }
 
     /// Returns true when a tick has been triggered by the GPU.
+    /// Last GPU tick known to have completed.
+    [[nodiscard]] u64 KnownGpuTick() const noexcept {
+        return master_semaphore->KnownGpuTick();
+    }
+
     [[nodiscard]] bool IsFree(u64 tick) const noexcept {
         return master_semaphore->IsFree(tick);
     }
