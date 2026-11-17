@@ -841,6 +841,13 @@ abstract class SettingsItem(
             )
             put(
                 SwitchSetting(
+                    BooleanSetting.FORCE_39BIT_ADDRESS_SPACE,
+                    titleId = R.string.force_39bit_address_space,
+                    descriptionId = R.string.force_39bit_address_space_description
+                )
+            )
+            put(
+                SwitchSetting(
                     BooleanSetting.CORE_SYNC_CORE_SPEED,
                     titleId = R.string.use_sync_core,
                     descriptionId = R.string.use_sync_core_description

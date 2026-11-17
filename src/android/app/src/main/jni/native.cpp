@@ -7,7 +7,11 @@
 #define VMA_IMPLEMENTATION
 #include "video_core/vulkan_common/vma.h"
 
+#include <algorithm>
+#include <atomic>
+#include <cstdlib>
 #include <codecvt>
+#include <functional>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -23,6 +27,7 @@
 #include <string_view>
 #include <thread>
 #include <vector>
+#include <dirent.h>
 #include <dlfcn.h>
 #include <unistd.h>
 
@@ -204,8 +209,31 @@ bool EmulationSession::IsPaused() const {
     return m_is_running && m_is_paused;
 }
 
+#if defined(EDEN_S24_TUNING)
+namespace {
+// Latest frame statistics, shared with the periodic [Perf] log report below.
+std::atomic<double> g_perf_fps{0.0};
+std::atomic<double> g_perf_frametime{0.0};
+std::atomic<double> g_perf_speed{0.0};
+std::atomic<s64> g_perf_updated_ms{0};
+
+s64 PerfNowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
+} // namespace
+#endif
+
 const Core::PerfStatsResults& EmulationSession::PerfStats() {
     m_perf_stats = m_system.GetAndResetPerfStats();
+#if defined(EDEN_S24_TUNING)
+    g_perf_fps = m_perf_stats.average_game_fps;
+    g_perf_frametime = m_perf_stats.frametime;
+    g_perf_speed = m_perf_stats.emulation_speed;
+    g_perf_updated_ms = PerfNowMs();
+#endif
     return m_perf_stats;
 }
 
@@ -304,6 +332,159 @@ void PgoBeginGameSession() {
             PgoWriteProfile();
         }
     });
+}
+} // namespace
+#endif
+
+#if defined(EDEN_S24_TUNING)
+// S24 build: periodic performance report in the log. Every 10 s it records the frame rate and
+// emulation speed, how much CPU time each emulator thread used (as % of one core, with the core
+// it last ran on), and the current clock of every CPU core. This shows where the time goes: a
+// CPU-emulation thread pinned at ~100%, the GPU thread saturated, cores being throttled, or
+// neither (waiting on the GPU itself).
+namespace {
+struct PerfThreadSample {
+    std::string name;
+    u64 ticks{};
+    int cpu{-1};
+};
+
+std::map<int, PerfThreadSample> PerfReadThreads() {
+    std::map<int, PerfThreadSample> out;
+    DIR* dir = opendir("/proc/self/task");
+    if (dir == nullptr) {
+        return out;
+    }
+    while (dirent* entry = readdir(dir)) {
+        if (entry->d_name[0] < '0' || entry->d_name[0] > '9') {
+            continue;
+        }
+        char path[64];
+        std::snprintf(path, sizeof(path), "/proc/self/task/%s/stat", entry->d_name);
+        FILE* file = std::fopen(path, "re");
+        if (file == nullptr) {
+            continue;
+        }
+        char buf[1024];
+        const size_t n = std::fread(buf, 1, sizeof(buf) - 1, file);
+        std::fclose(file);
+        buf[n] = 0;
+        char* const lp = std::strchr(buf, '(');
+        char* const rp = std::strrchr(buf, ')');
+        if (lp == nullptr || rp == nullptr || rp < lp) {
+            continue;
+        }
+        PerfThreadSample sample;
+        sample.name.assign(lp + 1, rp);
+        // Fields after "(comm)": state is field 3, utime 14, stime 15, processor 39.
+        int field = 2;
+        char* save = nullptr;
+        for (char* tok = strtok_r(rp + 1, " ", &save); tok != nullptr;
+             tok = strtok_r(nullptr, " ", &save)) {
+            ++field;
+            if (field == 14 || field == 15) {
+                sample.ticks += std::strtoull(tok, nullptr, 10);
+            } else if (field == 39) {
+                sample.cpu = std::atoi(tok);
+                break;
+            }
+        }
+        out.emplace(std::atoi(entry->d_name), std::move(sample));
+    }
+    closedir(dir);
+    return out;
+}
+
+long PerfReadLong(const char* path) {
+    FILE* file = std::fopen(path, "re");
+    if (file == nullptr) {
+        return -1;
+    }
+    long value = -1;
+    if (std::fscanf(file, "%ld", &value) != 1) {
+        value = -1;
+    }
+    std::fclose(file);
+    return value;
+}
+
+// refresh_stats re-reads the frame statistics when the overlay isn't doing so; it returns false
+// once emulation is stopping.
+void PerfMonitorLoop(std::stop_token token, const std::function<bool()>& refresh_stats) {
+    const double ticks_per_second = static_cast<double>(sysconf(_SC_CLK_TCK));
+    auto prev = PerfReadThreads();
+    auto prev_time = std::chrono::steady_clock::now();
+    bool gpu_busy_readable = true;
+
+    while (!token.stop_requested()) {
+        for (int i = 0; i < 100 && !token.stop_requested(); ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if (token.stop_requested()) {
+            break;
+        }
+
+        // Frame statistics: reuse what the on-screen overlay last read, or read them ourselves.
+        if (PerfNowMs() - g_perf_updated_ms.load() > 3000 && !refresh_stats()) {
+            break;
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        const double seconds = std::chrono::duration<double>(now - prev_time).count();
+        auto cur = PerfReadThreads();
+
+        std::vector<std::pair<double, std::string>> usage;
+        double total = 0.0;
+        for (const auto& [tid, sample] : cur) {
+            const auto it = prev.find(tid);
+            const u64 before = it != prev.end() ? it->second.ticks : 0;
+            if (sample.ticks <= before) {
+                continue;
+            }
+            const double percent =
+                static_cast<double>(sample.ticks - before) / ticks_per_second / seconds * 100.0;
+            total += percent;
+            if (percent >= 2.0) {
+                usage.emplace_back(percent, fmt::format("{}={:.0f}%@{}", sample.name, percent,
+                                                        sample.cpu));
+            }
+        }
+        std::sort(usage.begin(), usage.end(),
+                  [](const auto& a, const auto& b) { return a.first > b.first; });
+        std::string threads;
+        for (size_t i = 0; i < usage.size() && i < 14; ++i) {
+            threads += usage[i].second;
+            threads += ' ';
+        }
+
+        std::string clocks;
+        for (int cpu = 0; cpu < 8; ++cpu) {
+            char path[80];
+            std::snprintf(path, sizeof(path),
+                          "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", cpu);
+            const long khz = PerfReadLong(path);
+            clocks += khz > 0 ? fmt::format("{} ", khz / 1000) : std::string("? ");
+        }
+
+        std::string gpu;
+        if (gpu_busy_readable) {
+            const long busy = PerfReadLong("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage");
+            if (busy >= 0) {
+                gpu = fmt::format(" | gpu_busy={}%", busy);
+            } else {
+                gpu_busy_readable = false;
+            }
+        }
+
+        LOG_INFO(Frontend,
+                 "[Perf] fps={:.1f} frametime={:.1f}ms speed={:.0f}% | all threads={:.0f}% | {}"
+                 "| core MHz: {}{}",
+                 g_perf_fps.load(), g_perf_frametime.load() * 1000.0, g_perf_speed.load() * 100.0,
+                 total, threads, clocks, gpu);
+
+        prev = std::move(cur);
+        prev_time = now;
+    }
 }
 } // namespace
 #endif
@@ -479,6 +660,24 @@ void EmulationSession::RunEmulation() {
     }
 
     void(m_system.Run());
+
+#if defined(EDEN_S24_TUNING)
+    std::jthread perf_monitor([this](std::stop_token token) {
+        PerfMonitorLoop(token, [this] {
+            // ShutdownEmulation holds m_mutex while it tears the system down, so the statistics
+            // are only touched while the game is still running.
+            std::scoped_lock lock(m_mutex);
+            if (!m_is_running) {
+                return false;
+            }
+            const auto stats = m_system.GetAndResetPerfStats();
+            g_perf_fps = stats.average_game_fps;
+            g_perf_frametime = stats.frametime;
+            g_perf_speed = stats.emulation_speed;
+            return true;
+        });
+    });
+#endif
 
     if (m_system.DebuggerEnabled()) {
         m_system.InitializeDebugger();

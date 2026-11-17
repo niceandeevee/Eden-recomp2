@@ -250,6 +250,10 @@ struct Values {
     SwitchableSetting<bool> enable_cheats_by_default{linkage, true, "enable_cheats_by_default", Category::Core};
 
     // Cpu
+    // Experimental: load 64-bit titles that declare the old 36-bit address space (e.g. Breath of
+    // the Wild) in a 39-bit one, so they can use NCE instead of the Dynarmic recompiler.
+    SwitchableSetting<bool> force_39bit_address_space{linkage, false, "force_39bit_address_space",
+                                                      Category::Cpu, Specialization::Default};
     SwitchableSetting<CpuBackend, true> cpu_backend{linkage,
 #ifdef HAS_NCE
                                                     CpuBackend::Nce,

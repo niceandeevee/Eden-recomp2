@@ -147,6 +147,10 @@ ProgramAddressSpaceType ProgramMetadata::GetAddressSpaceType() const {
     return npdm_header.address_space_type;
 }
 
+void ProgramMetadata::OverrideAddressSpaceType(ProgramAddressSpaceType type) {
+    npdm_header.address_space_type.Assign(type);
+}
+
 u8 ProgramMetadata::GetMainThreadPriority() const {
     return npdm_header.main_thread_priority;
 }

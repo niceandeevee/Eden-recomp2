@@ -13,6 +13,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     FASTMEM("cpuopt_fastmem"),
     FASTMEM_EXCLUSIVES("cpuopt_fastmem_exclusives"),
     CORE_SYNC_CORE_SPEED("sync_core_speed"),
+    FORCE_39BIT_ADDRESS_SPACE("force_39bit_address_space"),
     ENABLE_CHEATS_BY_DEFAULT("enable_cheats_by_default"),
     RENDERER_USE_SPEED_LIMIT("use_speed_limit"),
     USE_CUSTOM_CPU_TICKS("use_custom_cpu_ticks"),

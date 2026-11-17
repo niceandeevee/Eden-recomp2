@@ -101,6 +101,8 @@
     <string name="buffer_reorder_disable">Disable Buffer Reorder</string>
     <string name="buffer_reorder_disable_description">When checked, disables reordering of mapped memory uploads which allows to associate uploads with specific draws. May reduce performance in some cases.</string>
 
+    <string name="force_39bit_address_space">Run older 64-bit games natively (experimental)</string>
+    <string name="force_39bit_address_space_description">Loads games built for the old 36-bit address space, such as Breath of the Wild, in a 39-bit one so they can use NCE instead of the slower recompiler. Turn off if a game crashes or won\'t boot.</string>
     <string name="use_sync_core">Synchronize Core Speed</string>
     <string name="use_sync_core_description">Synchronize the core tick speed to the maximum speed percentage to improve performance without altering the game\'s actual speed.</string>
     <string name="cpuopt_unsafe_host_mmu">Enable Host MMU Emulation</string>

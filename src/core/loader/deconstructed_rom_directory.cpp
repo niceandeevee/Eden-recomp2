@@ -182,10 +182,17 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
     }
     metadata.Print();
 
+    const bool is_application = metadata.GetPoolPartition() == FileSys::PoolPartition::Application;
+    if (is_application && metadata.Is64BitProgram() &&
+        metadata.GetAddressSpaceType() == FileSys::ProgramAddressSpaceType::Is36Bit &&
+        Settings::values.force_39bit_address_space.GetValue()) {
+        LOG_WARNING(Loader, "Forcing 39-bit address space for a 36-bit title (experimental)");
+        metadata.OverrideAddressSpaceType(FileSys::ProgramAddressSpaceType::Is39Bit);
+    }
+
     // Enable NCE only for applications with 39-bit address space.
     const bool is_39bit =
         metadata.GetAddressSpaceType() == FileSys::ProgramAddressSpaceType::Is39Bit;
-    const bool is_application = metadata.GetPoolPartition() == FileSys::PoolPartition::Application;
     Settings::SetNceEnabled(is_39bit);
     if (is_application && !Settings::IsNceEnabled()) {
         // An NCE title run earlier in this app session leaves the device memory buffer

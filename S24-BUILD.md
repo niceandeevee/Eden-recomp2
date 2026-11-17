@@ -41,6 +41,12 @@ This tree is Eden master with changes for the Galaxy S24 / S24+ / S24 Ultra
 - No GDB stub, no OpenGL loader/EGL/GLES linkage (Vulkan only).
 - libyuzu-android.so exports only its JNI entry points and uses packed RELR relocations.
 
+**Diagnostics and experiments**
+- Every 10 s during a game the log gets a `[Perf]` line: fps, frame time, emulation speed, CPU use
+  per emulator thread (% of one core and the core it ran on) and the clock of each CPU core.
+- Settings → Advanced → Debug → CPU → "Run older 64-bit games natively (experimental)": loads
+  36-bit titles such as Breath of the Wild in a 39-bit address space so they can use NCE.
+
 **New menus**
 - Settings → *Advanced & hidden options*: 55 core settings that had no Android menu
   (multicore, frame pacing, async presentation, driver pipeline cache, ASTC recompression,

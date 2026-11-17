@@ -73,6 +73,9 @@ public:
 
     bool Is64BitProgram() const;
     ProgramAddressSpaceType GetAddressSpaceType() const;
+    /// Replaces the address space type declared by the program (used to run 36-bit titles in a
+    /// 39-bit address space so they can execute natively).
+    void OverrideAddressSpaceType(ProgramAddressSpaceType type);
     u8 GetMainThreadPriority() const;
     u8 GetMainThreadCore() const;
     u32 GetMainThreadStackSize() const;
