@@ -7,6 +7,7 @@
 #include <cinttypes>
 #include <memory>
 
+#include "common/perf_counters.h"
 #include "common/signal_chain.h"
 #include "core/arm/nce/arm_nce.h"
 #include "core/arm/nce/interpreter_visitor.h"
@@ -159,6 +160,7 @@ bool ArmNce::HandleGuestAlignmentFault(GuestContext* guest_ctx, void* raw_info, 
 
 bool ArmNce::HandleGuestAccessFault(GuestContext* guest_ctx, void* raw_info, void* raw_context) {
     auto* info = static_cast<siginfo_t*>(raw_info);
+    Common::g_guest_write_faults.fetch_add(1, std::memory_order_relaxed);
 
     // Try to handle an invalid access.
     // TODO: handle accesses which split a page?

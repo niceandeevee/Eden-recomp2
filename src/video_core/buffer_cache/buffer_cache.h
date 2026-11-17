@@ -129,6 +129,26 @@ void BufferCache<P>::WriteMemory(DAddr device_addr, u64 size) {
 }
 
 template <class P>
+void BufferCache<P>::WriteMemoryFromFault(DAddr device_addr, u64 size) {
+    const bool has_buffer = IsRegionRegistered(device_addr, size);
+    WriteMemory(device_addr, size);
+    if (!has_buffer) {
+        return;
+    }
+    // Guest code usually fills a buffer front to back, faulting on every 4 KiB page. Marking the
+    // whole 64 KiB block as CPU-modified lets the following writes through without a fault; the
+    // only cost is re-uploading pages that turn out not to have changed. Blocks holding data the
+    // GPU wrote (pending download) are left alone, since this would discard that data.
+    constexpr u64 BlockSize = 64 * 1024;
+    const DAddr begin = (std::max<DAddr>)(Common::AlignDown(device_addr, BlockSize), DEVICE_PAGESIZE);
+    const DAddr end = Common::AlignUp(device_addr + size, BlockSize);
+    if (IsRegionGpuModified(begin, end - begin)) {
+        return;
+    }
+    memory_tracker.MarkRegionAsCpuModified(begin, end - begin);
+}
+
+template <class P>
 void BufferCache<P>::CachedWriteMemory(DAddr device_addr, u64 size) {
     const bool is_dirty = IsRegionRegistered(device_addr, size);
     if (!is_dirty) {

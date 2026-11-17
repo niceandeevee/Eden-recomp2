@@ -235,6 +235,11 @@ public:
 
     void WriteMemory(DAddr device_addr, u64 size);
 
+    /// WriteMemory for a guest write that faulted on a protected page. Also releases the rest of
+    /// the 64 KiB block the write landed in, so filling a buffer costs one fault instead of one
+    /// per page.
+    void WriteMemoryFromFault(DAddr device_addr, u64 size);
+
     void CachedWriteMemory(DAddr device_addr, u64 size);
 
     bool OnCPUWrite(DAddr device_addr, u64 size);

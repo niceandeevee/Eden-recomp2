@@ -798,7 +798,12 @@ void RasterizerVulkan::OnCacheInvalidation(DAddr addr, u64 size) {
     }
     {
         std::scoped_lock lock{buffer_cache.mutex};
+#ifdef __ANDROID__
+        // This is the NCE write-fault path: release the surrounding block too (see the callee).
+        buffer_cache.WriteMemoryFromFault(addr, size);
+#else
         buffer_cache.WriteMemory(addr, size);
+#endif
     }
     pipeline_cache.InvalidateRegion(addr, size);
 }

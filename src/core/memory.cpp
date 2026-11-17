@@ -17,6 +17,7 @@
 #include "common/atomic_ops.h"
 #include "common/common_types.h"
 #include "common/heap_tracker.h"
+#include "common/perf_counters.h"
 #include "common/logging.h"
 #include "common/page_table.h"
 #include "common/scope_exit.h"
@@ -452,6 +453,7 @@ struct Memory::Impl {
         if (vaddr == 0 || !AddressSpaceContains(*current_page_table, vaddr, size)) {
             return;
         }
+        Common::g_gpu_cache_protects.fetch_add(1, std::memory_order_relaxed);
 
 #ifdef __ANDROID__
         // Android limits a process to vm.max_map_count (65530) mappings. Write-protecting cached

@@ -56,6 +56,7 @@ extern "C" {
 #include "common/fs/fs_util.h"
 #include "common/fs/path_util.h"
 #include "common/logging.h"
+#include "common/perf_counters.h"
 #include "common/scm_rev.h"
 #include "common/scope_exit.h"
 #include "common/settings.h"
@@ -415,6 +416,8 @@ void PerfMonitorLoop(std::stop_token token, const std::function<bool()>& refresh
     auto prev = PerfReadThreads();
     auto prev_time = std::chrono::steady_clock::now();
     bool gpu_busy_readable = true;
+    u64 prev_faults = Common::g_guest_write_faults.load();
+    u64 prev_protects = Common::g_gpu_cache_protects.load();
 
     while (!token.stop_requested()) {
         for (int i = 0; i < 100 && !token.stop_requested(); ++i) {
@@ -476,11 +479,17 @@ void PerfMonitorLoop(std::stop_token token, const std::function<bool()>& refresh
             }
         }
 
+        const u64 faults = Common::g_guest_write_faults.load();
+        const u64 protects = Common::g_gpu_cache_protects.load();
+
         LOG_INFO(Frontend,
                  "[Perf] fps={:.1f} frametime={:.1f}ms speed={:.0f}% | all threads={:.0f}% | {}"
-                 "| core MHz: {}{}",
+                 "| core MHz: {}| write faults/s={:.0f} cache protects/s={:.0f}{}",
                  g_perf_fps.load(), g_perf_frametime.load() * 1000.0, g_perf_speed.load() * 100.0,
-                 total, threads, clocks, gpu);
+                 total, threads, clocks, static_cast<double>(faults - prev_faults) / seconds,
+                 static_cast<double>(protects - prev_protects) / seconds, gpu);
+        prev_faults = faults;
+        prev_protects = protects;
 
         prev = std::move(cur);
         prev_time = now;
