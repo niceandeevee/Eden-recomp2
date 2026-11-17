@@ -196,12 +196,7 @@ public:
         constexpr Member* GetFront(s32 core) const {
             ASSERT(IsValidCore(core));
 
-            const s32 priority = s32([](auto const& e) {
-                for (size_t i = 0; i < e.size(); ++i)
-                    if (e[i])
-                        return i;
-                return e.size();
-            }(m_available_priorities[core]));
+            const s32 priority = s32(GetFirstSet(m_available_priorities[core]));
             if (priority <= LowestPriority) {
                 return m_queues[priority].GetFront(core);
             } else {
@@ -220,12 +215,37 @@ public:
             }
         }
 
+        // Lowest set index (= highest priority), or N if none. For the 64-priority queues this is
+        // a single count-trailing-zeros instead of testing the bits one by one; the scheduler calls
+        // this hundreds of millions of times in busy games.
+        template<size_t N>
+        constexpr size_t GetFirstSet(std::bitset<N> const& bit) const {
+            if constexpr (N <= 64) {
+                const u64 v = bit.to_ullong();
+                return v == 0 ? N : static_cast<size_t>(std::countr_zero(v));
+            } else {
+                for (size_t i = 0; i < N; ++i)
+                    if (bit[i])
+                        return i;
+                return N;
+            }
+        }
+
+        // Lowest set index greater than n, or N if none.
         template<size_t N>
         constexpr size_t GetNextSet(std::bitset<N> const& bit, size_t n) const {
-            for (size_t i = n + 1; i < bit.size(); i++)
-                if (bit[i])
-                    return i;
-            return bit.size();
+            if constexpr (N <= 64) {
+                if (n + 1 >= N) {
+                    return N;
+                }
+                const u64 v = bit.to_ullong() & (~u64(0) << (n + 1));
+                return v == 0 ? N : static_cast<size_t>(std::countr_zero(v));
+            } else {
+                for (size_t i = n + 1; i < N; i++)
+                    if (bit[i])
+                        return i;
+                return N;
+            }
         }
 
         constexpr Member* GetNext(s32 core, const Member* member) const {

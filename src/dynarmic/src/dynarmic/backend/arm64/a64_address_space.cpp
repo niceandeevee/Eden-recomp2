@@ -513,6 +513,30 @@ void A64AddressSpace::EmitPrelude() {
             code.B(LE, return_from_run_code);
         }
 
+        oaknut::Label l_table, l_slow;
+        const bool fast_dispatch = conf.HasOptimization(OptimizationFlag::FastDispatch);
+        if (fast_dispatch) {
+            // Inline lookup in the fast-dispatch table: key = pc | (fpcr & mask) << shift, the same
+            // value as A64JitState::GetLocationDescriptor(). Falls back to GetOrEmit on a miss.
+            code.MOV(Wscratch0, A64::LocationDescriptor::fpcr_mask);
+            code.LDR(W0, Xstate, offsetof(A64JitState, fpcr));
+            code.LDR(X1, Xstate, offsetof(A64JitState, pc));
+            code.AND(W0, W0, Wscratch0);
+            code.AND(X1, X1, A64::LocationDescriptor::pc_mask);
+            code.LSL(X0, X0, A64::LocationDescriptor::fpcr_shift);
+            code.ORR(X0, X0, X1);
+            code.LSR(X1, X0, 2);
+            code.EOR(X1, X1, X0, LSR, 18);
+            code.AND(X1, X1, FastDispatchMask);
+            code.LDR(Xscratch1, l_table);
+            code.ADD(X1, Xscratch1, X1, LSL, 4);
+            code.LDP(X2, X3, X1, 0);
+            code.CMP(X2, X0);
+            code.B(NE, l_slow);
+            code.BR(X3);
+            code.l(l_slow);
+        }
+
         code.LDR(X0, l_this);
         code.MOV(X1, Xstate);
         code.LDR(Xscratch0, l_addr);
@@ -520,7 +544,10 @@ void A64AddressSpace::EmitPrelude() {
         code.BR(X0);
 
         const auto fn = [](A64AddressSpace& self, A64JitState& context) -> CodePtr {
-            return self.GetOrEmit(context.GetLocationDescriptor());
+            const IR::LocationDescriptor location = context.GetLocationDescriptor();
+            const CodePtr code_ptr = self.GetOrEmit(location);
+            self.FastDispatchInsert(location.Value(), code_ptr);
+            return code_ptr;
         };
 
         code.align(8);
@@ -528,6 +555,8 @@ void A64AddressSpace::EmitPrelude() {
         code.dx(std::bit_cast<u64>(this));
         code.l(l_addr);
         code.dx(std::bit_cast<u64>(Common::FptrCast(fn)));
+        code.l(l_table);
+        code.dx(std::bit_cast<u64>(FastDispatchTable()));
     }
 
     prelude_info.return_from_run_code = code.xptr<void*>();

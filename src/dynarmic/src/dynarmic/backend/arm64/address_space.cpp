@@ -33,6 +33,9 @@ AddressSpace::AddressSpace(std::size_t code_cache_size)
 {
     ASSERT(code_cache_size <= 128 * 1024 * 1024 && "code_cache_size > 128 MiB not currently supported");
 
+    fast_dispatch_table = std::make_unique<FastDispatchEntry[]>(FastDispatchMask + 1);
+    FastDispatchClear();
+
     exception_handler.Register(mem, code_cache_size);
     exception_handler.SetFastmemCallback([this](u64 host_pc) {
         return FastmemCallback(host_pc);
@@ -87,6 +90,7 @@ void AddressSpace::InvalidateBasicBlocks(const ::Common::unordered_set<IR::Locat
         // Unlink before removal because InvalidateBasicBlocks can be called within a fastmem callback,
         // and the currently executing block may have references to itself which need to be unlinked.
         RelinkForDescriptor(descriptor, nullptr);
+        FastDispatchErase(descriptor.Value());
 
         block_entries.erase(iter);
     }
@@ -95,6 +99,7 @@ void AddressSpace::InvalidateBasicBlocks(const ::Common::unordered_set<IR::Locat
 }
 
 void AddressSpace::ClearCache() {
+    FastDispatchClear();
     block_entries.clear();
     reverse_block_entries.clear();
     block_infos.clear();

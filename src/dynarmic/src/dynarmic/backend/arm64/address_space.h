@@ -9,6 +9,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <optional>
 
 #include "common/common_types.h"
@@ -45,6 +46,41 @@ public:
     void InvalidateBasicBlocks(const ::Common::unordered_set<IR::LocationDescriptor>& descriptors);
 
     void ClearCache();
+
+    /// Direct-mapped cache of (location descriptor -> host code) consulted inline by the dispatcher
+    /// before it falls back to the C++ GetOrEmit lookup (the "fast dispatcher").
+    struct FastDispatchEntry {
+        u64 location;
+        CodePtr code_ptr;
+    };
+    static constexpr std::size_t FastDispatchBits = 16;
+    static constexpr u64 FastDispatchMask = (u64(1) << FastDispatchBits) - 1;
+    static constexpr u64 FastDispatchEmpty = ~u64(0); ///< Never a valid descriptor value
+    static constexpr std::size_t FastDispatchIndex(u64 location) {
+        // Must match the hash emitted in the A64 dispatcher prelude.
+        return static_cast<std::size_t>(((location >> 2) ^ (location >> 18)) & FastDispatchMask);
+    }
+    void FastDispatchInsert(u64 location, CodePtr code_ptr) {
+        auto& entry = fast_dispatch_table[FastDispatchIndex(location)];
+        entry.location = location;
+        entry.code_ptr = code_ptr;
+    }
+    void FastDispatchErase(u64 location) {
+        auto& entry = fast_dispatch_table[FastDispatchIndex(location)];
+        if (entry.location == location) {
+            entry.location = FastDispatchEmpty;
+            entry.code_ptr = nullptr;
+        }
+    }
+    void FastDispatchClear() {
+        for (std::size_t i = 0; i <= FastDispatchMask; ++i) {
+            fast_dispatch_table[i] = {FastDispatchEmpty, nullptr};
+        }
+    }
+    static_assert(sizeof(FastDispatchEntry) == 16, "dispatcher indexes the table with LSL #4");
+    FastDispatchEntry* FastDispatchTable() {
+        return fast_dispatch_table.get();
+    }
 protected:
     virtual EmitConfig GetEmitConfig() = 0;
     virtual void RegisterNewBasicBlock(const IR::Block& block, const EmittedBlockInfo& block_info) = 0;
@@ -71,6 +107,7 @@ protected:
 
     IR::Block ir_block;
     const std::size_t code_cache_size;
+    std::unique_ptr<FastDispatchEntry[]> fast_dispatch_table;
     oaknut::CodeBlock mem;
     oaknut::CodeGenerator code;
 
