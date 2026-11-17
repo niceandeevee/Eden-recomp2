@@ -1,0 +1,41 @@
+name: Symbolize crash addresses
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Build run ID whose Eden-S24plus-symbols artifact matches the crashing APK"
+        required: true
+      addresses:
+        description: "Space-separated rel_pc values from the crash report (hex, e.g. 0xbeee64)"
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  symbolize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Eden-S24plus-symbols
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: symbols
+
+      - name: Symbolize
+        shell: bash
+        run: |
+          sudo apt-get install -y -qq llvm >/dev/null 2>&1 || true
+          SYM=$(command -v llvm-symbolizer || ls /usr/bin/llvm-symbolizer-* | head -1)
+          lib=$(ls symbols/*.so | head -1)
+          out=""
+          for a in ${{ inputs.addresses }}; do
+            fn=$("$SYM" --obj="$lib" --functions=linkage --demangle "$a" | head -1)
+            out+="$a  ${fn}"$'\n'
+          done
+          echo "$out"
+          msg=$(printf '%s' "$out" | cut -c1-300 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::notice title=Symbolized::$msg"
