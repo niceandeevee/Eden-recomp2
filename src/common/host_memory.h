@@ -50,6 +50,9 @@ public:
 
     void Protect(size_t virtual_offset, size_t length, MemoryPermission perms);
 
+    /// True if [virtual_offset, virtual_offset + length) lies inside the reserved virtual range.
+    [[nodiscard]] bool InVirtualRange(size_t virtual_offset, size_t length) const;
+
     void EnableDirectMappedAddress();
     void DisableDirectMappedAddress();
 

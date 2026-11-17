@@ -39,6 +39,16 @@
 
 namespace Common::Log {
 
+/// Write each log line to disk immediately. Always on in the S24 Android build (whatever the
+/// saved setting says) so a crash can't lose the last lines of the log.
+static bool FlushEveryLine() {
+#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
+    return true;
+#else
+    return Settings::values.log_flush_line.GetValue();
+#endif
+}
+
 /// @brief A log entry. Log entries are store in a structured format to permit more varied output
 /// formatting on different frontends, as well as facilitating filtering and aggregation.
 struct Entry {
@@ -275,7 +285,7 @@ struct FileBackend final : public Backend {
         bytes_written += file->WriteSpan(std::span<const char>{message.begin(), message.end()});
 
         // Option to log each line rather than 4k buffers
-        if (Settings::values.log_flush_line.GetValue())
+        if (FlushEveryLine())
             file->Flush();
 
         using namespace Common::Literals;
@@ -429,7 +439,7 @@ void SetColorConsoleBackendEnabled(bool enabled) {
 
 void FmtLogMessageImpl(Class log_class, Level log_level, const char* filename, unsigned int line_num, const char* function, fmt::string_view format, const fmt::format_args& args) {
     if (logging_instance && logging_instance->filter.CheckMessage(log_class, log_level)) {
-        auto const flush = ::Settings::values.log_flush_line.GetValue();
+        auto const flush = FlushEveryLine();
         char buffer[BUFSIZ];
         auto result = fmt::vformat_to_n(buffer, sizeof(buffer) - 1, format, args);
         Entry e{
