@@ -132,7 +132,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          echo "::notice::Full LTO did not finish; building with ThinLTO"
+          why=$(grep -m3 -E ': error:|ld.lld: error|FAILED:' "$RUNNER_TEMP/build.log" | cut -c1-240 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::notice title=Full LTO did not finish; building with ThinLTO::${why}"
           rm -rf build src/android/app/.cxx src/android/app/build artifacts
           chmod +x .ci/android/build.sh
           .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"

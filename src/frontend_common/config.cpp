@@ -281,8 +281,8 @@ void Config::ReadDataStorageValues() {
         }
         // A configured folder that doesn't exist yet (e.g. "tas", never created on Android) is
         // created rather than rejected.
-        if (!Exists(configured)) {
-            void(CreateDirs(configured));
+        if (!Common::FS::Exists(configured)) {
+            void(Common::FS::CreateDirs(configured));
         }
         SetEdenPath(path, configured);
     };

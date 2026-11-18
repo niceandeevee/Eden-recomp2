@@ -149,22 +149,28 @@ std::ptrdiff_t CachedOffsetOf() {
     return offset;
 }
 
+// Constant-folded when the caller is evaluated at compile time, cached otherwise. Kept in its
+// own function so is_constant_evaluated() is not read directly in a const initializer.
+template <auto MemberPtr, typename RealParentType>
+constexpr std::ptrdiff_t ParentOffset() {
+    if (std::is_constant_evaluated()) {
+        return OffsetOf<MemberPtr, RealParentType>();
+    }
+    return CachedOffsetOf<MemberPtr, RealParentType>();
+}
+
 } // namespace impl
 
 template <auto MemberPtr, typename RealParentType = impl::GetParentType<MemberPtr>>
 constexpr RealParentType& GetParentReference(impl::GetMemberType<MemberPtr>* member) {
-    const std::ptrdiff_t Offset = std::is_constant_evaluated()
-                                      ? impl::OffsetOf<MemberPtr, RealParentType>()
-                                      : impl::CachedOffsetOf<MemberPtr, RealParentType>();
+    const std::ptrdiff_t Offset = impl::ParentOffset<MemberPtr, RealParentType>();
     return *static_cast<RealParentType*>(
         static_cast<void*>(static_cast<uint8_t*>(static_cast<void*>(member)) - Offset));
 }
 
 template <auto MemberPtr, typename RealParentType = impl::GetParentType<MemberPtr>>
 constexpr RealParentType const& GetParentReference(impl::GetMemberType<MemberPtr> const* member) {
-    const std::ptrdiff_t Offset = std::is_constant_evaluated()
-                                      ? impl::OffsetOf<MemberPtr, RealParentType>()
-                                      : impl::CachedOffsetOf<MemberPtr, RealParentType>();
+    const std::ptrdiff_t Offset = impl::ParentOffset<MemberPtr, RealParentType>();
     return *static_cast<const RealParentType*>(static_cast<const void*>(
         static_cast<const uint8_t*>(static_cast<const void*>(member)) - Offset));
 }

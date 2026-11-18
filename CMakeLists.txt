@@ -373,6 +373,14 @@ if (CXX_GCC OR CXX_CLANG)
             # Release-only leanness: no frame-pointer bookkeeping, no PAC/BTI branch protection,
             # no stack canaries and no FORTIFY checks in hot memcpy/memset paths.
             set(_sd8gen3_cflags "-fno-semantic-interposition -fno-math-errno -fno-plt -ffunction-sections -fdata-sections -fomit-frame-pointer -mbranch-protection=none -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0")
+            # The NDK toolchain adds full -g. Line tables are all crash symbolisation needs, and
+            # full debug info breaks monolithic LTO (function specialisation clones keep
+            # llvm.dbg.label scopes pointing at the original function, which the verifier rejects)
+            # while also multiplying the LTO link's memory use.
+            foreach(_flags_var CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_ASM_FLAGS)
+                string(REGEX REPLACE "(^| )-g( |$)" " " ${_flags_var} "${${_flags_var}}")
+            endforeach()
+            string(APPEND _sd8gen3_cflags " -gline-tables-only")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_sd8gen3_cflags}")
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_sd8gen3_cflags} -fvisibility-inlines-hidden")
             # Bind intra-library function references at link time, drop unused sections, fold
