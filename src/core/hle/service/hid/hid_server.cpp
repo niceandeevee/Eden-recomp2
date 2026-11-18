@@ -289,7 +289,7 @@ Result IHidServer::ActivateMouse(ClientAppletResourceUserId aruid) {
 }
 
 Result IHidServer::ActivateDebugMouse(ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
     R_SUCCEED();
 }
 
@@ -304,7 +304,7 @@ Result IHidServer::ActivateKeyboard(ClientAppletResourceUserId aruid) {
 }
 
 Result IHidServer::SendKeyboardLockKeyEvent(u32 flags) {
-    LOG_WARNING(Service_HID, "(STUBBED) called. flags={}", flags);
+    LOG_DEBUG(Service_HID, "(STUBBED) called. flags={}", flags);
     R_SUCCEED();
 }
 
@@ -555,7 +555,7 @@ Result IHidServer::IsSixAxisSensorAtRest(Out<bool> out_is_at_rest,
 Result IHidServer::IsFirmwareUpdateAvailableForSixAxisSensor(
     Out<bool> out_is_firmware_available, Core::HID::SixAxisSensorHandle sixaxis_handle,
     ClientAppletResourceUserId aruid) {
-    LOG_WARNING(
+    LOG_DEBUG(
         Service_HID,
         "(STUBBED) called, npad_type={}, npad_id={}, device_index={}, applet_resource_user_id={}",
         sixaxis_handle.npad_type, sixaxis_handle.npad_id, sixaxis_handle.device_index, aruid.pid);
@@ -593,7 +593,7 @@ Result IHidServer::LoadSixAxisSensorCalibrationParameter(
     OutLargeData<Core::HID::SixAxisSensorCalibrationParameter, BufferAttr_HipcMapAlias>
         out_calibration,
     Core::HID::SixAxisSensorHandle sixaxis_handle, ClientAppletResourceUserId aruid) {
-    LOG_WARNING(
+    LOG_DEBUG(
         Service_HID,
         "(STUBBED) called, npad_type={}, npad_id={}, device_index={}, applet_resource_user_id={}",
         sixaxis_handle.npad_type, sixaxis_handle.npad_id, sixaxis_handle.device_index, aruid.pid);
@@ -605,7 +605,7 @@ Result IHidServer::LoadSixAxisSensorCalibrationParameter(
 Result IHidServer::GetSixAxisSensorIcInformation(
     OutLargeData<Core::HID::SixAxisSensorIcInformation, BufferAttr_HipcPointer> out_ic_information,
     Core::HID::SixAxisSensorHandle sixaxis_handle, ClientAppletResourceUserId aruid) {
-    LOG_WARNING(
+    LOG_DEBUG(
         Service_HID,
         "(STUBBED) called, npad_type={}, npad_id={}, device_index={}, applet_resource_user_id={}",
         sixaxis_handle.npad_type, sixaxis_handle.npad_id, sixaxis_handle.device_index, aruid.pid);
@@ -616,7 +616,7 @@ Result IHidServer::GetSixAxisSensorIcInformation(
 
 Result IHidServer::ResetIsSixAxisSensorDeviceNewlyAssigned(
     Core::HID::SixAxisSensorHandle sixaxis_handle, ClientAppletResourceUserId aruid) {
-    LOG_WARNING(
+    LOG_DEBUG(
         Service_HID,
         "(STUBBED) called, npad_type={}, npad_id={}, device_index={}, applet_resource_user_id={}",
         sixaxis_handle.npad_type, sixaxis_handle.npad_id, sixaxis_handle.device_index, aruid.pid);
@@ -638,7 +638,7 @@ Result IHidServer::ActivateGesture(u32 basic_gesture_id, ClientAppletResourceUse
 
 Result IHidServer::SetGestureOutputRanges(u32 param1, u32 param2, u32 param3, u32 param4) {
     // https://switchbrew.org/wiki/HID_services , Undocumented. 92 [18.0.0+] SetGestureOutputRanges
-    LOG_WARNING(
+    LOG_DEBUG(
         Service_HID,
         "(STUBBED) called, param1={}, param2={}, param3={}, param4={}",
         param1, param2, param3, param4);
@@ -1109,7 +1109,7 @@ Result IHidServer::ActivateConsoleSixAxisSensor(ClientAppletResourceUserId aruid
 Result IHidServer::StartConsoleSixAxisSensor(
     Core::HID::ConsoleSixAxisSensorHandle console_sixaxis_handle,
     ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID,
+    LOG_DEBUG(Service_HID,
                 "(STUBBED) called, unknown_1={}, unknown_2={}, applet_resource_user_id={}",
                 console_sixaxis_handle.unknown_1, console_sixaxis_handle.unknown_2, aruid.pid);
     R_SUCCEED();
@@ -1118,7 +1118,7 @@ Result IHidServer::StartConsoleSixAxisSensor(
 Result IHidServer::StopConsoleSixAxisSensor(
     Core::HID::ConsoleSixAxisSensorHandle console_sixaxis_handle,
     ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID,
+    LOG_DEBUG(Service_HID,
                 "(STUBBED) called, unknown_1={}, unknown_2={}, applet_resource_user_id={}",
                 console_sixaxis_handle.unknown_1, console_sixaxis_handle.unknown_2, aruid.pid);
     R_SUCCEED();
@@ -1136,12 +1136,12 @@ Result IHidServer::ActivateSevenSixAxisSensor(ClientAppletResourceUserId aruid) 
 }
 
 Result IHidServer::StartSevenSixAxisSensor(ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
     R_SUCCEED();
 }
 
 Result IHidServer::StopSevenSixAxisSensor(ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
     R_SUCCEED();
 }
 
@@ -1170,7 +1170,7 @@ Result IHidServer::InitializeSevenSixAxisSensor(ClientAppletResourceUserId aruid
 }
 
 Result IHidServer::FinalizeSevenSixAxisSensor(ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, applet_resource_user_id={}", aruid.pid);
 
     R_SUCCEED();
 }
@@ -1184,7 +1184,7 @@ Result IHidServer::ResetSevenSixAxisSensorTimestamp(ClientAppletResourceUserId a
 
 Result IHidServer::IsUsbFullKeyControllerEnabled(Out<bool> out_is_enabled,
                                                  ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called");
+    LOG_DEBUG(Service_HID, "(STUBBED) called");
 
     *out_is_enabled = false;
     R_SUCCEED();
@@ -1193,14 +1193,14 @@ Result IHidServer::IsUsbFullKeyControllerEnabled(Out<bool> out_is_enabled,
 Result IHidServer::GetPalmaConnectionHandle(Out<Palma::PalmaConnectionHandle> out_handle,
                                             Core::HID::NpadIdType npad_id,
                                             ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, npad_id={}, applet_resource_user_id={}", npad_id,
+    LOG_DEBUG(Service_HID, "(STUBBED) called, npad_id={}, applet_resource_user_id={}", npad_id,
                 aruid.pid);
 
     R_RETURN(GetResourceManager()->GetPalma()->GetPalmaConnectionHandle(npad_id, *out_handle));
 }
 
 Result IHidServer::InitializePalma(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     R_RETURN(GetResourceManager()->GetPalma()->InitializePalma(connection_handle));
 }
@@ -1208,7 +1208,7 @@ Result IHidServer::InitializePalma(Palma::PalmaConnectionHandle connection_handl
 Result IHidServer::AcquirePalmaOperationCompleteEvent(
     OutCopyHandle<Kernel::KReadableEvent> out_event,
     Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     *out_event =
         &GetResourceManager()->GetPalma()->AcquirePalmaOperationCompleteEvent(connection_handle);
@@ -1218,7 +1218,7 @@ Result IHidServer::AcquirePalmaOperationCompleteEvent(
 Result IHidServer::GetPalmaOperationInfo(Out<Palma::PalmaOperationType> out_operation_type,
                                          Palma::PalmaConnectionHandle connection_handle,
                                          OutBuffer<BufferAttr_HipcMapAlias> out_data) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     R_RETURN(GetResourceManager()->GetPalma()->GetPalmaOperationInfo(
         connection_handle, *out_operation_type, out_data));
@@ -1226,7 +1226,7 @@ Result IHidServer::GetPalmaOperationInfo(Out<Palma::PalmaOperationType> out_oper
 
 Result IHidServer::PlayPalmaActivity(Palma::PalmaConnectionHandle connection_handle,
                                      u64 palma_activity) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, palma_activity={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, palma_activity={}",
                 connection_handle.npad_id, palma_activity);
 
     R_RETURN(
@@ -1235,35 +1235,35 @@ Result IHidServer::PlayPalmaActivity(Palma::PalmaConnectionHandle connection_han
 
 Result IHidServer::SetPalmaFrModeType(Palma::PalmaConnectionHandle connection_handle,
                                       Palma::PalmaFrModeType fr_mode) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, fr_mode={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, fr_mode={}",
                 connection_handle.npad_id, fr_mode);
 
     R_RETURN(GetResourceManager()->GetPalma()->SetPalmaFrModeType(connection_handle, fr_mode));
 }
 
 Result IHidServer::ReadPalmaStep(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     R_RETURN(GetResourceManager()->GetPalma()->ReadPalmaStep(connection_handle));
 }
 
 Result IHidServer::EnablePalmaStep(bool is_enabled,
                                    Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, is_enabled={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, is_enabled={}",
                 connection_handle.npad_id, is_enabled);
 
     R_RETURN(GetResourceManager()->GetPalma()->EnablePalmaStep(connection_handle, is_enabled));
 }
 
 Result IHidServer::ResetPalmaStep(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     R_RETURN(GetResourceManager()->GetPalma()->ResetPalmaStep(connection_handle));
 }
 
 Result IHidServer::ReadPalmaApplicationSection(Palma::PalmaConnectionHandle connection_handle,
                                                u64 offset, u64 size) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, offset={}, size={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, offset={}, size={}",
                 connection_handle.npad_id, offset, size);
     R_SUCCEED();
 }
@@ -1271,20 +1271,20 @@ Result IHidServer::ReadPalmaApplicationSection(Palma::PalmaConnectionHandle conn
 Result IHidServer::WritePalmaApplicationSection(
     Palma::PalmaConnectionHandle connection_handle, u64 offset, u64 size,
     InLargeData<Palma::PalmaApplicationSection, BufferAttr_HipcPointer> data) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, offset={}, size={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, offset={}, size={}",
                 connection_handle.npad_id, offset, size);
     R_SUCCEED();
 }
 
 Result IHidServer::ReadPalmaUniqueCode(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     GetResourceManager()->GetPalma()->ReadPalmaUniqueCode(connection_handle);
     R_SUCCEED();
 }
 
 Result IHidServer::SetPalmaUniqueCodeInvalid(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     GetResourceManager()->GetPalma()->SetPalmaUniqueCodeInvalid(connection_handle);
     R_SUCCEED();
@@ -1292,14 +1292,14 @@ Result IHidServer::SetPalmaUniqueCodeInvalid(Palma::PalmaConnectionHandle connec
 
 Result IHidServer::WritePalmaActivityEntry(Palma::PalmaConnectionHandle connection_handle,
                                            Palma::PalmaActivityEntry activity_entry) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
     R_SUCCEED();
 }
 
 Result IHidServer::WritePalmaRgbLedPatternEntry(Palma::PalmaConnectionHandle connection_handle,
                                                 u64 unknown,
                                                 InBuffer<BufferAttr_HipcMapAlias> led_pattern) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, unknown={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, unknown={}",
                 connection_handle.npad_id, unknown);
 
     GetResourceManager()->GetPalma()->WritePalmaRgbLedPatternEntry(connection_handle, unknown);
@@ -1311,7 +1311,7 @@ Result IHidServer::WritePalmaWaveEntry(Palma::PalmaConnectionHandle connection_h
                                        u64 size, InCopyHandle<Kernel::KTransferMemory> t_mem) {
     ASSERT_MSG(t_mem->GetSize() == t_mem_size, "t_mem has incorrect size");
 
-    LOG_WARNING(
+    LOG_DEBUG(
         Service_HID,
         "(STUBBED) called, connection_handle={}, wave_set={}, unknown={}, t_mem_size={}, size={}",
         connection_handle.npad_id, wave_set, unknown, t_mem_size, size);
@@ -1323,7 +1323,7 @@ Result IHidServer::WritePalmaWaveEntry(Palma::PalmaConnectionHandle connection_h
 
 Result IHidServer::SetPalmaDataBaseIdentificationVersion(
     s32 database_id_version, Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}, database_id_version={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}, database_id_version={}",
                 connection_handle.npad_id, database_id_version);
 
     GetResourceManager()->GetPalma()->SetPalmaDataBaseIdentificationVersion(connection_handle,
@@ -1333,7 +1333,7 @@ Result IHidServer::SetPalmaDataBaseIdentificationVersion(
 
 Result IHidServer::GetPalmaDataBaseIdentificationVersion(
     Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     R_RETURN(
         GetResourceManager()->GetPalma()->GetPalmaDataBaseIdentificationVersion(connection_handle));
@@ -1341,32 +1341,32 @@ Result IHidServer::GetPalmaDataBaseIdentificationVersion(
 
 Result IHidServer::SuspendPalmaFeature(Palma::PalmaFeature feature,
                                        Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, feature={}, connection_handle={}", feature,
+    LOG_DEBUG(Service_HID, "(STUBBED) called, feature={}, connection_handle={}", feature,
                 connection_handle.npad_id);
     R_SUCCEED();
 }
 
 Result IHidServer::GetPalmaOperationResult(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     R_RETURN(GetResourceManager()->GetPalma()->GetPalmaOperationResult(connection_handle));
 }
 
 Result IHidServer::ReadPalmaPlayLog(u16 unknown, Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, unknown={}, connection_handle={}", unknown,
+    LOG_DEBUG(Service_HID, "(STUBBED) called, unknown={}, connection_handle={}", unknown,
                 connection_handle.npad_id);
     R_SUCCEED();
 }
 
 Result IHidServer::ResetPalmaPlayLog(u16 unknown, Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, unknown={}, connection_handle={}", unknown,
+    LOG_DEBUG(Service_HID, "(STUBBED) called, unknown={}, connection_handle={}", unknown,
                 connection_handle.npad_id);
     R_SUCCEED();
 }
 
 Result IHidServer::SetIsPalmaAllConnectable(bool is_palma_all_connectable,
                                             ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID,
+    LOG_DEBUG(Service_HID,
                 "(STUBBED) called, is_palma_all_connectable={}, applet_resource_user_id={}",
                 is_palma_all_connectable, aruid.pid);
 
@@ -1376,40 +1376,40 @@ Result IHidServer::SetIsPalmaAllConnectable(bool is_palma_all_connectable,
 
 Result IHidServer::SetIsPalmaPairedConnectable(bool is_palma_paired_connectable,
                                                ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID,
+    LOG_DEBUG(Service_HID,
                 "(STUBBED) called, is_palma_paired_connectable={}, applet_resource_user_id={}",
                 is_palma_paired_connectable, aruid.pid);
     R_SUCCEED();
 }
 
 Result IHidServer::PairPalma(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
 
     GetResourceManager()->GetPalma()->PairPalma(connection_handle);
     R_SUCCEED();
 }
 
 Result IHidServer::SetPalmaBoostMode(bool is_enabled) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, is_enabled={}", is_enabled);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, is_enabled={}", is_enabled);
 
     GetResourceManager()->GetPalma()->SetPalmaBoostMode(is_enabled);
     R_SUCCEED();
 }
 
 Result IHidServer::CancelWritePalmaWaveEntry(Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
     R_SUCCEED();
 }
 
 Result IHidServer::EnablePalmaBoostMode(bool is_enabled, ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, is_enabled={}, applet_resource_user_id={}",
+    LOG_DEBUG(Service_HID, "(STUBBED) called, is_enabled={}, applet_resource_user_id={}",
                 is_enabled, aruid.pid);
     R_SUCCEED();
 }
 
 Result IHidServer::GetPalmaBluetoothAddress(Out<Palma::Address> out_bt_address,
                                             Palma::PalmaConnectionHandle connection_handle) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
+    LOG_DEBUG(Service_HID, "(STUBBED) called, connection_handle={}", connection_handle.npad_id);
     R_SUCCEED();
 }
 
@@ -1455,7 +1455,7 @@ Result IHidServer::SetTouchScreenConfiguration(
 Result IHidServer::IsFirmwareUpdateNeededForNotification(Out<bool> out_is_firmware_update_needed,
                                                          s32 unknown,
                                                          ClientAppletResourceUserId aruid) {
-    LOG_WARNING(Service_HID, "(STUBBED) called, unknown={}, applet_resource_user_id={}", unknown,
+    LOG_DEBUG(Service_HID, "(STUBBED) called, unknown={}, applet_resource_user_id={}", unknown,
                 aruid.pid);
 
     *out_is_firmware_update_needed = false;

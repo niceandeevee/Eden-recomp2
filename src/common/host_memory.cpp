@@ -788,7 +788,6 @@ void HostMemory::Map(size_t virtual_offset, size_t host_offset, size_t length, M
     ASSERT(virtual_offset % PageAlignment == 0);
     ASSERT(host_offset % PageAlignment == 0);
     ASSERT(length % PageAlignment == 0);
-    ASSERT(virtual_offset + length <= virtual_size);
     if (!InVirtualRange(virtual_offset, length)) {
         // Never let an out-of-range request reach mmap/mprotect: with MAP_FIXED it would replace
         // memory that isn't ours (e.g. the allocator's), corrupting the process. Handle the part
@@ -811,7 +810,6 @@ void HostMemory::Unmap(size_t virtual_offset, size_t length, bool separate_heap)
 #if !(defined(__OPENORBIS__) || defined(__managarm__))
     ASSERT(virtual_offset % PageAlignment == 0);
     ASSERT(length % PageAlignment == 0);
-    ASSERT(virtual_offset + length <= virtual_size);
     if (!InVirtualRange(virtual_offset, length)) {
         // Never let an out-of-range request reach mmap/mprotect: with MAP_FIXED it would replace
         // memory that isn't ours (e.g. the allocator's), corrupting the process. Handle the part
@@ -833,7 +831,6 @@ void HostMemory::Protect(size_t virtual_offset, size_t length, MemoryPermission 
 #if !(defined(__OPENORBIS__) || defined(__managarm__))
     ASSERT(virtual_offset % PageAlignment == 0);
     ASSERT(length % PageAlignment == 0);
-    ASSERT(virtual_offset + length <= virtual_size);
     if (!InVirtualRange(virtual_offset, length)) {
         // Never let an out-of-range request reach mmap/mprotect: with MAP_FIXED it would replace
         // memory that isn't ours (e.g. the allocator's), corrupting the process. Handle the part

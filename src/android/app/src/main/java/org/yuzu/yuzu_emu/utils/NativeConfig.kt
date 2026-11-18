@@ -110,6 +110,9 @@ object NativeConfig {
     @Synchronized
     external fun setString(key: String, value: String)
 
+    /** True if [key] names a setting the emulator core knows about (not an Android-only one). */
+    external fun isNativeSetting(key: String): Boolean
+
     external fun getIsRuntimeModifiable(key: String): Boolean
 
     external fun getPairedSettingKey(key: String): String

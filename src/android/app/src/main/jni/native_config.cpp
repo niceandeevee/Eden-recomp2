@@ -34,6 +34,10 @@ static void ResetFxChainToGlobal() {}
 template <typename T>
 Settings::Setting<T>* getSetting(JNIEnv* env, jstring jkey) {
     auto key = Common::Android::GetJString(env, jkey);
+    if (key.empty()) {
+        // UI-only items (headers, runnables) have no key and no native setting.
+        return nullptr;
+    }
     // Use find() rather than operator[]: operator[] inserts a null entry for unknown keys, which
     // mutates the shared settings map and races with other threads reading it.
     const auto& core_keys = Settings::values.linkage.by_key;
@@ -236,6 +240,22 @@ void Java_org_yuzu_yuzu_1emu_utils_NativeConfig_setString(JNIEnv* env, jobject o
     }
 
     setting->SetValue(Common::Android::GetJString(env, value));
+}
+
+jboolean Java_org_yuzu_yuzu_1emu_utils_NativeConfig_isNativeSetting(JNIEnv* env, jobject obj,
+                                                                    jstring jkey) {
+    // Quiet existence check for settings that may live only in the Android UI.
+    const auto key = Common::Android::GetJString(env, jkey);
+    if (key.empty()) {
+        return false;
+    }
+    const auto& core_keys = Settings::values.linkage.by_key;
+    if (const auto it = core_keys.find(key); it != core_keys.end() && it->second != nullptr) {
+        return true;
+    }
+    const auto& android_keys = AndroidSettings::values.linkage.by_key;
+    const auto it = android_keys.find(key);
+    return it != android_keys.end() && it->second != nullptr;
 }
 
 jboolean Java_org_yuzu_yuzu_1emu_utils_NativeConfig_getIsRuntimeModifiable(JNIEnv* env, jobject obj,

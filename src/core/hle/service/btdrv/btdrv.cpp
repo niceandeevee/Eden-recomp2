@@ -46,7 +46,7 @@ public:
 
 private:
     Result RegisterBleEvent(OutCopyHandle<Kernel::KReadableEvent> out_event) {
-        LOG_WARNING(Service_BTM, "(STUBBED) called");
+        LOG_DEBUG(Service_BTM, "(STUBBED) called");
 
         *out_event = &register_event->GetReadableEvent();
         R_SUCCEED();
@@ -201,7 +201,7 @@ public:
 
 private:
     Result EnableRadio() {
-        LOG_WARNING(Service_BTDRV, "(STUBBED) called");
+        LOG_DEBUG(Service_BTDRV, "(STUBBED) called");
         R_SUCCEED();
     }
 };

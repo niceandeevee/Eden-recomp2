@@ -275,7 +275,16 @@ void Config::ReadDataStorageValues() {
     using namespace Common::FS;
 
     const auto setPath = [this](const EdenPath& path, const char* setting) {
-        SetEdenPath(path, ReadStringSetting(std::string(setting)));
+        const std::string configured = ReadStringSetting(std::string(setting));
+        if (configured.empty()) {
+            return; // keep the default location
+        }
+        // A configured folder that doesn't exist yet (e.g. "tas", never created on Android) is
+        // created rather than rejected.
+        if (!Exists(configured)) {
+            void(CreateDirs(configured));
+        }
+        SetEdenPath(path, configured);
     };
 
     setPath(EdenPath::NANDDir, "nand_directory");

@@ -6,6 +6,7 @@
 
 #include "audio_core/audio_core.h"
 #include "audio_core/sink/sink_details.h"
+#include "common/logging.h"
 #include "common/settings.h"
 #include "core/core.h"
 
@@ -23,7 +24,14 @@ AudioCore ::~AudioCore() {
 }
 
 void AudioCore::CreateSinks() {
-    const auto& sink_id{Settings::values.sink_id};
+    auto& sink_id{Settings::values.sink_id};
+    // Migrate a saved backend this build doesn't include (e.g. "sdl3" on the S24 build) to Auto
+    // once, so it isn't reported as invalid on every launch; the next config save persists it.
+    if (!Sink::IsSinkAvailable(sink_id.GetValue())) {
+        LOG_INFO(Audio, "Audio backend {} is not available in this build, switching to auto",
+                 Settings::CanonicalizeEnum(sink_id.GetValue()));
+        sink_id.SetValue(Settings::AudioEngine::Auto);
+    }
     const auto& audio_output_device_id{Settings::values.audio_output_device_id};
     const auto& audio_input_device_id{Settings::values.audio_input_device_id};
 

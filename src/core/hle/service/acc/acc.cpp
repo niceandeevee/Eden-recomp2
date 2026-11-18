@@ -979,7 +979,7 @@ Result Module::Interface::InitializeApplicationInfoBase() {
         return Account::ResultInvalidApplication;
     }
 
-    LOG_WARNING(Service_ACC, "ApplicationInfo init required");
+    LOG_DEBUG(Service_ACC, "ApplicationInfo init required");
     // TODO(ogniK): Actual initialization here
 
     return ResultSuccess;

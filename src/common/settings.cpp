@@ -199,11 +199,11 @@ static bool is_nce_enabled = false;
 void SetNceEnabled(bool is_39bit) {
     const bool is_nce_selected = values.cpu_backend.GetValue() == CpuBackend::Nce;
     if (is_nce_selected && !IsFastmemEnabled()) {
-        LOG_WARNING(Common, "Fastmem is required to natively execute code in a performant manner, "
+        LOG_INFO(Common, "Fastmem is required to natively execute code in a performant manner, "
                             "falling back to Dynarmic");
     }
     if (is_nce_selected && !is_39bit) {
-        LOG_WARNING(
+        LOG_INFO(
             Common,
             "Program does not utilize 39-bit address space, unable to natively execute code");
     }

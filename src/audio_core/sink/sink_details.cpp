@@ -128,6 +128,14 @@ const SinkDetails& GetOutputSinkDetails(Settings::AudioEngine sink_id) {
 }
 } // Anonymous namespace
 
+bool IsSinkAvailable(Settings::AudioEngine sink_id) {
+    if (sink_id == Settings::AudioEngine::Auto) {
+        return true;
+    }
+    return std::any_of(std::begin(sink_details), std::end(sink_details),
+                       [sink_id](const auto& sink) { return sink.id == sink_id; });
+}
+
 std::vector<Settings::AudioEngine> GetSinkIDs() {
     std::vector<Settings::AudioEngine> sink_ids(std::size(sink_details));
 

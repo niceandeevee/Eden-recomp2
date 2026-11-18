@@ -250,8 +250,34 @@ void FloatToInt64To32(IR::Block& block, IR::Inst& inst, bool is_signed, size_t s
     inst.ReplaceUsesWith(ir.CompositeConstruct(lo, hi));
 }
 
+void LowerGlobalAddress(IR::Block& block, IR::Inst& inst) {
+    // Global memory functions take a uvec2 address when Int64 is lowered; expand immediates.
+    const IR::Value address{inst.Arg(0)};
+    if (!address.IsImmediate() || address.Type() != IR::Type::U64) {
+        return;
+    }
+    IR::IREmitter ir(block, IR::Block::InstructionList::s_iterator_to(inst));
+    const auto [lo, hi]{Unpack(ir, address)};
+    inst.SetArg(0, ir.CompositeConstruct(lo, hi));
+}
+
 void Lower(IR::Block& block, IR::Inst& inst) {
     switch (inst.GetOpcode()) {
+    case IR::Opcode::LoadGlobalU8:
+    case IR::Opcode::LoadGlobalS8:
+    case IR::Opcode::LoadGlobalU16:
+    case IR::Opcode::LoadGlobalS16:
+    case IR::Opcode::LoadGlobal32:
+    case IR::Opcode::LoadGlobal64:
+    case IR::Opcode::LoadGlobal128:
+    case IR::Opcode::WriteGlobalU8:
+    case IR::Opcode::WriteGlobalS8:
+    case IR::Opcode::WriteGlobalU16:
+    case IR::Opcode::WriteGlobalS16:
+    case IR::Opcode::WriteGlobal32:
+    case IR::Opcode::WriteGlobal64:
+    case IR::Opcode::WriteGlobal128:
+        return LowerGlobalAddress(block, inst);
     case IR::Opcode::PackUint2x32:
     case IR::Opcode::UnpackUint2x32:
         return inst.ReplaceOpcode(IR::Opcode::Identity);

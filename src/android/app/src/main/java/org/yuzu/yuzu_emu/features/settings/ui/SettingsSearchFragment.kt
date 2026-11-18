@@ -121,7 +121,8 @@ class SettingsSearchFragment : Fragment() {
             val item = it.second.value
             val pairedSettingKey = item.setting.pairedSettingKey
             val optionalSetting: SettingsItem? = if (pairedSettingKey.isNotEmpty()) {
-                val pairedSettingValue = NativeConfig.getBoolean(pairedSettingKey, false)
+                val pairedSettingValue = NativeConfig.isNativeSetting(pairedSettingKey) &&
+                    NativeConfig.getBoolean(pairedSettingKey, false)
                 if (pairedSettingValue) it.second.value else null
             } else {
                 it.second.value

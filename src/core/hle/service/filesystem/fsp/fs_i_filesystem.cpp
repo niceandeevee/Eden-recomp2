@@ -135,7 +135,7 @@ Result IFileSystem::GetEntryType(
 }
 
 Result IFileSystem::Commit() {
-    LOG_WARNING(Service_FS, "(STUBBED) called");
+    LOG_DEBUG(Service_FS, "(STUBBED) called");
 
     R_SUCCEED();
 }
@@ -169,7 +169,7 @@ Result IFileSystem::GetFileTimeStampRaw(
 }
 
 Result IFileSystem::GetFileSystemAttribute(Out<FileSys::FileSystemAttribute> out_attribute) {
-    LOG_WARNING(Service_FS, "(STUBBED) called");
+    LOG_DEBUG(Service_FS, "(STUBBED) called");
 
     constexpr s32 kEntryNameLengthMax = 0x80;
     constexpr s32 kPathLengthMax = 0x300;

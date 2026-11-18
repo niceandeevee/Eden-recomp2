@@ -24,7 +24,7 @@ IBtmUser::IBtmUser(Core::System& system_) : ServiceFramework{system_, "btm:u"} {
 IBtmUser::~IBtmUser() = default;
 
 Result IBtmUser::GetCore(OutInterface<IBtmUserCore> out_interface) {
-    LOG_WARNING(Service_BTM, "called");
+    LOG_DEBUG(Service_BTM, "called");
 
     *out_interface = std::make_shared<IBtmUserCore>(system);
     R_SUCCEED();

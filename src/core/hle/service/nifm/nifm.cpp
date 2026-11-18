@@ -302,7 +302,7 @@ private:
     }
 
     void SetChannels(HLERequestContext& ctx) {
-        LOG_WARNING(Service_NIFM, "(STUBBED) called");
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called");
         IPC::ResponseBuilder{ctx, 2}.Push(ResultSuccess);
     }
 
@@ -406,7 +406,7 @@ private:
         IPC::RequestParser rp{ctx};
         const auto param_1 = rp.Pop<u32>();
 
-        LOG_WARNING(Service_NIFM, "(STUBBED) called, param_1={}", param_1);
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called, param_1={}", param_1);
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(ResultSuccess);
@@ -420,7 +420,7 @@ private:
             IPC::ResponseBuilder{ctx, 2}.Push(ResultInvalidInput);
             return;
         }
-        LOG_WARNING(Service_NIFM, "(STUBBED) called, ssid_length={}", ssid_length);
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called, ssid_length={}", ssid_length);
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(1);
@@ -453,7 +453,7 @@ private:
     }
 
     void GetSystemEventReadableHandles(HLERequestContext& ctx) {
-        LOG_WARNING(Service_NIFM, "(STUBBED) called");
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
         IPC::ResponseBuilder rb{ctx, 2, 2};
         rb.Push(ResultSuccess);
@@ -461,21 +461,21 @@ private:
     }
 
     void Cancel(HLERequestContext& ctx) {
-        LOG_WARNING(Service_NIFM, "(STUBBED) called");
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(ResultSuccess);
     }
 
     void SetConnectionConfirmationOption(HLERequestContext& ctx) {
-        LOG_WARNING(Service_NIFM, "(STUBBED) called");
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(ResultSuccess);
     }
 
     void GetAppletInfo(HLERequestContext& ctx) {
-        LOG_WARNING(Service_NIFM, "(STUBBED) called");
+        LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
         std::vector<u8> out_buffer(ctx.GetWriteBufferSize());
 
@@ -520,7 +520,7 @@ public:
 
 void IGeneralService::GetClientId(HLERequestContext& ctx) {
     static constexpr u32 client_id = 1;
-    LOG_WARNING(Service_NIFM, "(STUBBED) called");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(ResultSuccess);
@@ -750,7 +750,7 @@ void IGeneralService::SetNetworkProfile(HLERequestContext& ctx) {
 }
 
 void IGeneralService::RemoveNetworkProfile(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NIFM, "(STUBBED) called");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(ResultSuccess);
@@ -844,7 +844,7 @@ void IGeneralService::GetScanDataV3(HLERequestContext& ctx) {
 }
 
 void IGeneralService::GetCurrentIpAddress(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NIFM, "(STUBBED) called");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
     auto ipv4 = Network::GetHostIPv4Address();
     if (!ipv4) {
@@ -968,7 +968,7 @@ void IGeneralService::SetEthernetCommunicationEnabled(HLERequestContext& ctx) {
 }
 
 void IGeneralService::IsEthernetCommunicationEnabled(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NIFM, "(STUBBED) called");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);
@@ -980,7 +980,7 @@ void IGeneralService::IsEthernetCommunicationEnabled(HLERequestContext& ctx) {
 }
 
 void IGeneralService::IsAnyInternetRequestAccepted(HLERequestContext& ctx) {
-    LOG_ERROR(Service_NIFM, "(STUBBED) called");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);
@@ -994,7 +994,7 @@ void IGeneralService::IsAnyInternetRequestAccepted(HLERequestContext& ctx) {
 void IGeneralService::IsAnyForegroundRequestAccepted(HLERequestContext& ctx) {
     const bool is_accepted{};
 
-    LOG_WARNING(Service_NIFM, "(STUBBED) called, is_accepted={}", is_accepted);
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called, is_accepted={}", is_accepted);
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);
@@ -1002,7 +1002,7 @@ void IGeneralService::IsAnyForegroundRequestAccepted(HLERequestContext& ctx) {
 }
 
 void IGeneralService::GetSsidListVersion(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NIFM, "(STUBBED) called");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called");
 
     constexpr u32 ssid_list_version = 0;
 
@@ -1021,7 +1021,7 @@ void IGeneralService::ConfirmSystemAvailability(HLERequestContext& ctx) {
 }
 
 void IGeneralService::SetBackgroundRequestEnabled(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NIFM, "(STUBBED) called.");
+    LOG_DEBUG(Service_NIFM, "(STUBBED) called.");
 
     // TODO (jarrodnorwell)
 

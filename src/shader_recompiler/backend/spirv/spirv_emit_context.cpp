@@ -940,9 +940,13 @@ void EmitContext::DefineWriteStorageCasLoopFunction(const Info& info) {
 }
 
 void EmitContext::DefineGlobalMemoryFunctions(const Info& info) {
-    if (!info.uses_global_memory || !profile.support_int64) {
+    if (!info.uses_global_memory) {
         return;
     }
+    // Without shaderInt64 the Int64 lowering pass turns guest addresses into uvec2 (lo, hi), so the
+    // lookup functions take a uvec2 and do the 64-bit range check with 32-bit borrow arithmetic.
+    const bool use_int64{profile.support_int64};
+    const Id addr_type{use_int64 ? U64 : U32[2]};
     using DefPtr = Id StorageDefinitions::*;
     const Id zero{u32_zero_value};
     const auto define_body{[&](DefPtr ssbo_member, Id addr, Id element_pointer, u32 shift,
@@ -962,19 +966,42 @@ void EmitContext::DefineGlobalMemoryFunctions(const Info& info) {
                                                      zero, ssbo_size_cbuf_offset)};
 
             const u64 ssbo_align_mask{~(profile.min_ssbo_alignment - 1U)};
-            const Id unaligned_addr{OpBitcast(U64, OpLoad(U32[2], ssbo_addr_pointer))};
-            const Id ssbo_addr{OpBitwiseAnd(U64, unaligned_addr, Constant(U64, ssbo_align_mask))};
-            const Id ssbo_size{OpUConvert(U64, OpLoad(U32[1], ssbo_size_pointer))};
-            const Id ssbo_end{OpIAdd(U64, ssbo_addr, ssbo_size)};
-            const Id cond{OpLogicalAnd(U1, OpUGreaterThanEqual(U1, addr, ssbo_addr),
-                                       OpULessThan(U1, addr, ssbo_end))};
+            Id cond{};
+            Id ssbo_offset{};
+            if (use_int64) {
+                const Id unaligned_addr{OpBitcast(U64, OpLoad(U32[2], ssbo_addr_pointer))};
+                const Id ssbo_addr{
+                    OpBitwiseAnd(U64, unaligned_addr, Constant(U64, ssbo_align_mask))};
+                const Id ssbo_size{OpUConvert(U64, OpLoad(U32[1], ssbo_size_pointer))};
+                const Id ssbo_end{OpIAdd(U64, ssbo_addr, ssbo_size)};
+                cond = OpLogicalAnd(U1, OpUGreaterThanEqual(U1, addr, ssbo_addr),
+                                    OpULessThan(U1, addr, ssbo_end));
+                ssbo_offset = OpUConvert(U32[1], OpISub(U64, addr, ssbo_addr));
+            } else {
+                // The alignment mask only clears low bits, so it only touches the low word.
+                const Id base{OpLoad(U32[2], ssbo_addr_pointer)};
+                const Id base_lo{OpBitwiseAnd(U32[1], OpCompositeExtract(U32[1], base, 0U),
+                                              Const(static_cast<u32>(ssbo_align_mask)))};
+                const Id base_hi{OpCompositeExtract(U32[1], base, 1U)};
+                const Id ssbo_size{OpLoad(U32[1], ssbo_size_pointer)};
+                const Id addr_lo{OpCompositeExtract(U32[1], addr, 0U)};
+                const Id addr_hi{OpCompositeExtract(U32[1], addr, 1U)};
+                // diff = addr - base as a 64-bit value; it is in range when diff.hi == 0 and
+                // diff.lo < size. An address below the base wraps and leaves diff.hi non-zero.
+                const Id diff_lo{OpISub(U32[1], addr_lo, base_lo)};
+                const Id borrow{
+                    OpSelect(U32[1], OpULessThan(U1, addr_lo, base_lo), Const(1U), zero)};
+                const Id diff_hi{OpISub(U32[1], OpISub(U32[1], addr_hi, base_hi), borrow)};
+                cond = OpLogicalAnd(U1, OpIEqual(U1, diff_hi, zero),
+                                    OpULessThan(U1, diff_lo, ssbo_size));
+                ssbo_offset = diff_lo;
+            }
             const Id then_label{OpLabel()};
             const Id else_label{OpLabel()};
             OpSelectionMerge(else_label, spv::SelectionControlMask::MaskNone);
             OpBranchConditional(cond, then_label, else_label);
             AddLabel(then_label);
             const Id ssbo_id{ssbos[index].*ssbo_member};
-            const Id ssbo_offset{OpUConvert(U32[1], OpISub(U64, addr, ssbo_addr))};
             const Id ssbo_index{OpShiftRightLogical(U32[1], ssbo_offset, Const(shift))};
             const Id ssbo_pointer{OpAccessChain(element_pointer, ssbo_id, zero, ssbo_index)};
             callback(ssbo_pointer);
@@ -982,9 +1009,9 @@ void EmitContext::DefineGlobalMemoryFunctions(const Info& info) {
         }
     }};
     const auto define_load{[&](DefPtr ssbo_member, Id element_pointer, Id type, u32 shift) {
-        const Id function_type{TypeFunction(type, U64)};
+        const Id function_type{TypeFunction(type, addr_type)};
         const Id func_id{OpFunction(type, spv::FunctionControlMask::MaskNone, function_type)};
-        const Id addr{OpFunctionParameter(U64)};
+        const Id addr{OpFunctionParameter(addr_type)};
         define_body(ssbo_member, addr, element_pointer, shift,
                     [&](Id ssbo_pointer) { OpReturnValue(OpLoad(type, ssbo_pointer)); });
         OpReturnValue(ConstantNull(type));
@@ -992,9 +1019,9 @@ void EmitContext::DefineGlobalMemoryFunctions(const Info& info) {
         return func_id;
     }};
     const auto define_write{[&](DefPtr ssbo_member, Id element_pointer, Id type, u32 shift) {
-        const Id function_type{TypeFunction(void_id, U64, type)};
+        const Id function_type{TypeFunction(void_id, addr_type, type)};
         const Id func_id{OpFunction(void_id, spv::FunctionControlMask::MaskNone, function_type)};
-        const Id addr{OpFunctionParameter(U64)};
+        const Id addr{OpFunctionParameter(addr_type)};
         const Id data{OpFunctionParameter(type)};
         define_body(ssbo_member, addr, element_pointer, shift, [&](Id ssbo_pointer) {
             OpStore(ssbo_pointer, data);

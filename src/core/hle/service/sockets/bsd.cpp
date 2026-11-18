@@ -149,7 +149,7 @@ void BSD_USA::SendToWork::Response(HLERequestContext& ctx) {
 }
 
 void BSD_USA::RegisterClient(HLERequestContext& ctx) {
-    LOG_WARNING(Service, "(STUBBED) called");
+    LOG_DEBUG(Service, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 3};
 
@@ -158,7 +158,7 @@ void BSD_USA::RegisterClient(HLERequestContext& ctx) {
 }
 
 void BSD_USA::StartMonitoring(HLERequestContext& ctx) {
-    LOG_WARNING(Service, "(STUBBED) called");
+    LOG_DEBUG(Service, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 2};
 
@@ -446,7 +446,7 @@ void BSD_USA::Read(HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
     const s32 fd = rp.Pop<s32>();
 
-    LOG_WARNING(Service, "(STUBBED) called. fd={} len={}", fd, ctx.GetWriteBufferSize());
+    LOG_DEBUG(Service, "(STUBBED) called. fd={} len={}", fd, ctx.GetWriteBufferSize());
 
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(ResultSuccess);
@@ -510,7 +510,7 @@ void BSD_USA::EventFd(HLERequestContext& ctx) {
     const u64 initval = rp.Pop<u64>();
     const u32 flags = rp.Pop<u32>();
 
-    LOG_WARNING(Service, "(STUBBED) called. initval={}, flags={}", initval, flags);
+    LOG_DEBUG(Service, "(STUBBED) called. initval={}, flags={}", initval, flags);
 
     BuildErrnoResponse(ctx, Errno::SUCCESS);
 }
@@ -828,7 +828,7 @@ Errno BSD_USA::SetSockOptImpl(s32 fd, u32 level, OptName optname, std::span<cons
     }
 
     if (level != static_cast<u32>(SocketLevel::SOCKET)) {
-        LOG_WARNING(Service, "(STUBBED) setsockopt with level={}, optname={}", level, optname);
+        LOG_DEBUG(Service, "(STUBBED) setsockopt with level={}, optname={}", level, optname);
         return Errno::SUCCESS;
     }
 
@@ -864,7 +864,7 @@ Errno BSD_USA::SetSockOptImpl(s32 fd, u32 level, OptName optname, std::span<cons
     case OptName::RCVTIMEO:
         return Translate(socket->SetRcvTimeo(value));
     case OptName::NOSIGPIPE:
-        LOG_WARNING(Service, "(STUBBED) setting NOSIGPIPE to {}", value);
+        LOG_DEBUG(Service, "(STUBBED) setting NOSIGPIPE to {}", value);
         return Errno::SUCCESS;
     default:
         UNIMPLEMENTED_MSG("Unimplemented optname={}", optname);

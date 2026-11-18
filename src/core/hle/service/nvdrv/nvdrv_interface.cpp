@@ -155,7 +155,7 @@ void NVDRV::Close(HLERequestContext& ctx) {
 }
 
 void NVDRV::Initialize(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NVDRV, "(STUBBED) called");
+    LOG_DEBUG(Service_NVDRV, "(STUBBED) called");
     IPC::ResponseBuilder rb{ctx, 3};
     SCOPE_EXIT {
         rb.Push(ResultSuccess);
@@ -212,7 +212,7 @@ void NVDRV::QueryEvent(HLERequestContext& ctx) {
 void NVDRV::SetAruid(HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
     pid = rp.Pop<u64>();
-    LOG_WARNING(Service_NVDRV, "(STUBBED) called, pid={:#x}", pid);
+    LOG_DEBUG(Service_NVDRV, "(STUBBED) called, pid={:#x}", pid);
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);
@@ -220,14 +220,14 @@ void NVDRV::SetAruid(HLERequestContext& ctx) {
 }
 
 void NVDRV::SetGraphicsFirmwareMemoryMarginEnabled(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NVDRV, "(STUBBED) called");
+    LOG_DEBUG(Service_NVDRV, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(ResultSuccess);
 }
 
 void NVDRV::GetStatus(HLERequestContext& ctx) {
-    LOG_WARNING(Service_NVDRV, "(STUBBED) called");
+    LOG_DEBUG(Service_NVDRV, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);

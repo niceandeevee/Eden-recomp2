@@ -142,7 +142,7 @@ Result IApplicationFunctions::PopLaunchParameter(Out<SharedPointer<IStorage>> ou
                         : m_applet->preselected_user_launch_parameter;
 
     if (channel.empty()) {
-        LOG_WARNING(Service_AM, "Attempted to pop parameter {} but none was found!",
+        LOG_DEBUG(Service_AM, "Attempted to pop parameter {} but none was found!",
                     launch_parameter_kind);
         R_THROW(AM::ResultNoDataInChannel);
     }
@@ -262,7 +262,7 @@ Result IApplicationFunctions::GetSaveDataSize(Out<u64> out_normal_size, Out<u64>
 Result IApplicationFunctions::CreateCacheStorage(Out<u32> out_target_media,
                                                  Out<u64> out_required_size, u16 index,
                                                  u64 normal_size, u64 journal_size) {
-    LOG_WARNING(Service_AM, "(STUBBED) called with index={} size={:#x} journal_size={:#x}", index,
+    LOG_DEBUG(Service_AM, "(STUBBED) called with index={} size={:#x} journal_size={:#x}", index,
                 normal_size, journal_size);
 
     *out_target_media = 1; // Nand
@@ -273,7 +273,7 @@ Result IApplicationFunctions::CreateCacheStorage(Out<u32> out_target_media,
 
 Result IApplicationFunctions::GetSaveDataSizeMax(Out<u64> out_max_normal_size,
                                                  Out<u64> out_max_journal_size) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     *out_max_normal_size = 0xFFFFFFF;
     *out_max_journal_size = 0xFFFFFFF;
@@ -298,7 +298,7 @@ Result IApplicationFunctions::GetCacheStorageMax(Out<u32> out_cache_storage_inde
 }
 
 Result IApplicationFunctions::BeginBlockingHomeButtonShortAndLongPressed(s64 unused) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->home_button_long_pressed_blocked = true;
@@ -308,7 +308,7 @@ Result IApplicationFunctions::BeginBlockingHomeButtonShortAndLongPressed(s64 unu
 }
 
 Result IApplicationFunctions::EndBlockingHomeButtonShortAndLongPressed() {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->home_button_long_pressed_blocked = false;
@@ -318,7 +318,7 @@ Result IApplicationFunctions::EndBlockingHomeButtonShortAndLongPressed() {
 }
 
 Result IApplicationFunctions::BeginBlockingHomeButton(s64 timeout_ns) {
-    LOG_WARNING(Service_AM, "(STUBBED) called, timeout_ns={}", timeout_ns);
+    LOG_DEBUG(Service_AM, "(STUBBED) called, timeout_ns={}", timeout_ns);
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->home_button_long_pressed_blocked = true;
@@ -329,7 +329,7 @@ Result IApplicationFunctions::BeginBlockingHomeButton(s64 timeout_ns) {
 }
 
 Result IApplicationFunctions::EndBlockingHomeButton() {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->home_button_long_pressed_blocked = false;
@@ -340,13 +340,13 @@ Result IApplicationFunctions::EndBlockingHomeButton() {
 }
 
 Result IApplicationFunctions::NotifyRunning(Out<bool> out_became_running) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     *out_became_running = true;
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::GetPseudoDeviceId(Out<Common::UUID> out_pseudo_device_id) {
-    LOG_WARNING(Service_AM, "(stubbed)");
+    LOG_DEBUG(Service_AM, "(stubbed)");
     R_UNLESS(out_pseudo_device_id != nullptr, ResultUnknown);
 
     // This should be hashed with the device specific hash
@@ -368,19 +368,19 @@ Result IApplicationFunctions::GetPseudoDeviceId(Out<Common::UUID> out_pseudo_dev
 
 Result IApplicationFunctions::IsGamePlayRecordingSupported(
     Out<bool> out_is_game_play_recording_supported) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     *out_is_game_play_recording_supported = m_applet->game_play_recording_supported;
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::InitializeGamePlayRecording(
     u64 transfer_memory_size, InCopyHandle<Kernel::KTransferMemory> transfer_memory_handle) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::SetMediaPlaybackStateForApplication(bool enabled) {
-    LOG_WARNING(Service_AM, "(stubbed) {}", enabled);
+    LOG_DEBUG(Service_AM, "(stubbed) {}", enabled);
     std::scoped_lock lk{m_applet->lock};
     m_applet->media_playback_state = enabled;
     R_SUCCEED();
@@ -388,7 +388,7 @@ Result IApplicationFunctions::SetMediaPlaybackStateForApplication(bool enabled) 
 
 Result IApplicationFunctions::SetGamePlayRecordingState(
     GamePlayRecordingState game_play_recording_state) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->game_play_recording_state = game_play_recording_state;
@@ -397,7 +397,7 @@ Result IApplicationFunctions::SetGamePlayRecordingState(
 }
 
 Result IApplicationFunctions::EnableApplicationCrashReport(bool enabled) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->application_crash_report_enabled = enabled;
@@ -408,19 +408,19 @@ Result IApplicationFunctions::EnableApplicationCrashReport(bool enabled) {
 Result IApplicationFunctions::InitializeApplicationCopyrightFrameBuffer(
     s32 width, s32 height, u64 transfer_memory_size,
     InCopyHandle<Kernel::KTransferMemory> transfer_memory_handle) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::SetApplicationCopyrightImage(
     s32 x, s32 y, s32 width, s32 height, WindowOriginMode window_origin_mode,
     InBuffer<BufferAttr_HipcMapTransferAllowsNonSecure | BufferAttr_HipcMapAlias> image_data) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::SetApplicationCopyrightVisibility(bool visible) {
-    LOG_WARNING(Service_AM, "(STUBBED) called, is_visible={}", visible);
+    LOG_DEBUG(Service_AM, "(STUBBED) called, is_visible={}", visible);
     R_SUCCEED();
 }
 
@@ -428,7 +428,7 @@ Result IApplicationFunctions::QueryApplicationPlayStatistics(
     Out<s32> out_entries,
     OutArray<ApplicationPlayStatistics, BufferAttr_HipcMapAlias> out_play_statistics,
     InArray<u64, BufferAttr_HipcMapAlias> application_ids) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     *out_entries = 0;
     R_SUCCEED();
 }
@@ -437,13 +437,13 @@ Result IApplicationFunctions::QueryApplicationPlayStatisticsByUid(
     Out<s32> out_entries,
     OutArray<ApplicationPlayStatistics, BufferAttr_HipcMapAlias> out_play_statistics,
     Common::UUID user_id, InArray<u64, BufferAttr_HipcMapAlias> application_ids) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     *out_entries = 0;
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::ExecuteProgram(ProgramSpecifyKind kind, u64 value) {
-    LOG_WARNING(Service_AM, "(STUBBED) called, kind={}, value={}", kind, value);
+    LOG_DEBUG(Service_AM, "(STUBBED) called, kind={}, value={}", kind, value);
     ASSERT(kind == ProgramSpecifyKind::ExecuteProgram ||
            kind == ProgramSpecifyKind::RestartProgram);
 
@@ -485,14 +485,14 @@ Result IApplicationFunctions::UnpopToUserChannel(SharedPointer<IStorage> storage
 }
 
 Result IApplicationFunctions::GetPreviousProgramIndex(Out<s32> out_previous_program_index) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     *out_previous_program_index = m_applet->previous_program_index;
     R_SUCCEED();
 }
 
 Result IApplicationFunctions::GetGpuErrorDetectedSystemEvent(
     OutCopyHandle<Kernel::KReadableEvent> out_event) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     *out_event = m_applet->gpu_error_detected_event.GetHandle();
     R_SUCCEED();
 }
@@ -551,7 +551,7 @@ Result IApplicationFunctions::Unknown330(Out<u8> out) {
 }
 
 Result IApplicationFunctions::PrepareForJit() {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
 
     std::scoped_lock lk{m_applet->lock};
     m_applet->jit_service_launched = true;

@@ -521,19 +521,19 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
 
     if (is_qualcomm) {
         must_emulate_scaled_formats = true;
-        LOG_WARNING(Render_Vulkan, "Qualcomm drivers require scaled vertex format emulation.");
+        LOG_INFO(Render_Vulkan, "Qualcomm drivers require scaled vertex format emulation.");
         has_broken_descriptor_aliasing = true;
-        LOG_WARNING(Render_Vulkan, "Qualcomm drivers have broken descriptor aliasing.");
-        LOG_WARNING(Render_Vulkan, "Qualcomm drivers have broken color write enable.");
+        LOG_INFO(Render_Vulkan, "Qualcomm drivers have broken descriptor aliasing.");
+        LOG_INFO(Render_Vulkan, "Qualcomm drivers have broken color write enable.");
         RemoveExtensionFeature(extensions.color_write_enable, features.color_write_enable,
                                VK_EXT_COLOR_WRITE_ENABLE_EXTENSION_NAME);
-        LOG_WARNING(Render_Vulkan, "Qualcomm drivers have broken shader atomic int64.");
+        LOG_INFO(Render_Vulkan, "Qualcomm drivers have broken shader atomic int64.");
         RemoveExtensionFeature(extensions.shader_atomic_int64, features.shader_atomic_int64,
                                VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
         features.shader_atomic_int64.shaderBufferInt64Atomics = false;
         features.shader_atomic_int64.shaderSharedInt64Atomics = false;
         features.features.shaderInt64 = false;
-        LOG_WARNING(Render_Vulkan, "Qualcomm drivers have broken workgroup memory explicit layout.");
+        LOG_INFO(Render_Vulkan, "Qualcomm drivers have broken workgroup memory explicit layout.");
         RemoveExtensionFeature(extensions.workgroup_memory_explicit_layout,
                                features.workgroup_memory_explicit_layout,
                                VK_KHR_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_EXTENSION_NAME);
@@ -549,7 +549,7 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
         bool should_patch_bcn = api_level >= 28;
         const bool bcn_debug_override = Settings::values.patch_old_qcom_drivers.GetValue();
         if (bcn_debug_override != should_patch_bcn) {
-            LOG_WARNING(Render_Vulkan,
+            LOG_INFO(Render_Vulkan,
                 "BCn patch debug override active: {} (auto-detected: {})",
                 bcn_debug_override, should_patch_bcn);
             should_patch_bcn = bcn_debug_override;
@@ -657,7 +657,7 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
     }
 
     if (is_turnip || is_qualcomm) {
-        LOG_WARNING(Render_Vulkan, "Driver requires higher-than-reported binding limits");
+        LOG_INFO(Render_Vulkan, "Driver requires higher-than-reported binding limits");
         properties.properties.limits.maxVertexInputBindings = 32;
     }
 

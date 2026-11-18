@@ -757,7 +757,7 @@ u64 System::ResolveCallerProgramId(u64 process_id) const {
     }
 
     const auto fallback = this->GetApplicationProcessProgramID();
-    LOG_WARNING(Core,
+    LOG_DEBUG(Core,
                 "Could not resolve caller process_id={}, falling back to application {:016X}",
                 process_id, fallback);
     return fallback;

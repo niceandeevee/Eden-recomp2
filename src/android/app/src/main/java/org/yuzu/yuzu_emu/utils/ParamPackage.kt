@@ -18,7 +18,12 @@ class ParamPackage(serialized: String = "") {
     val data = mutableMapOf<String, String>()
 
     init {
-        val pairs = serialized.split(PARAM_SEPARATOR)
+        // "[empty]" is the native side's placeholder for an empty package (see param_package.cpp).
+        val pairs = if (serialized.isEmpty() || serialized == EMPTY_PLACEHOLDER) {
+            emptyList()
+        } else {
+            serialized.split(PARAM_SEPARATOR)
+        }
         for (pair in pairs) {
             val keyValue = pair.split(KEY_VALUE_SEPARATOR).toMutableList()
             if (keyValue.size != 2) {

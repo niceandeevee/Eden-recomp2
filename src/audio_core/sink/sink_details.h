@@ -23,6 +23,9 @@ class Sink;
  */
 std::vector<Settings::AudioEngine> GetSinkIDs();
 
+/// Whether this build includes the given audio backend (Auto is always available).
+bool IsSinkAvailable(Settings::AudioEngine sink_id);
+
 /**
  * Gets the list of devices for a particular sink identified by the given ID.
  *

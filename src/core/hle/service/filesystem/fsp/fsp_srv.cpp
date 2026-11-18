@@ -202,7 +202,7 @@ Result FSP_SRV::SetCurrentProcess(ClientProcessId pid) {
 
 Result FSP_SRV::OpenFileSystemWithPatch(OutInterface<IFileSystem> out_interface,
                                         FileSystemProxyType type, u64 open_program_id) {
-    LOG_ERROR(Service_FS, "(STUBBED) called with type={}, program_id={:016X}", type,
+    LOG_DEBUG(Service_FS, "(STUBBED) called with type={}, program_id={:016X}", type,
               open_program_id);
 
     // FIXME: many issues with this
@@ -260,7 +260,7 @@ Result FSP_SRV::CreateSaveDataFileSystemWithCreationInfo2(
 }
 
 Result FSP_SRV::IsExFatSupported(Out<bool> out_is_supported) {
-    LOG_WARNING(Service_FS, "(STUBBED) called");
+    LOG_DEBUG(Service_FS, "(STUBBED) called");
 
     *out_is_supported = true;
 
@@ -356,7 +356,7 @@ Result FSP_SRV::OpenSaveDataFileSystemBySystemSaveDataId(OutInterface<IFileSyste
 Result FSP_SRV::OpenReadOnlySaveDataFileSystem(OutInterface<IFileSystem> out_interface,
                                                FileSys::SaveDataSpaceId space_id,
                                                FileSys::SaveDataAttribute attribute) {
-    LOG_WARNING(Service_FS, "(STUBBED) called, delegating to 51 OpenSaveDataFilesystem");
+    LOG_DEBUG(Service_FS, "(STUBBED) called, delegating to 51 OpenSaveDataFilesystem");
     R_RETURN(OpenSaveDataFileSystem(out_interface, space_id, attribute));
 }
 
@@ -371,7 +371,7 @@ Result FSP_SRV::OpenSaveDataInfoReaderBySaveDataSpaceId(
 
 Result FSP_SRV::OpenSaveDataInfoReaderOnlyCacheStorage(
     OutInterface<ISaveDataInfoReader> out_interface) {
-    LOG_WARNING(Service_FS, "(STUBBED) called");
+    LOG_DEBUG(Service_FS, "(STUBBED) called");
 
     *out_interface = std::make_shared<ISaveDataInfoReader>(system, save_data_controller,
                                                            FileSys::SaveDataSpaceId::Temporary);
@@ -383,14 +383,14 @@ Result FSP_SRV::FindSaveDataWithFilter(Out<s64> out_count,
                                        OutBuffer<BufferAttr_HipcMapAlias> out_buffer,
                                        FileSys::SaveDataSpaceId space_id,
                                        FileSys::SaveDataFilter filter) {
-    LOG_WARNING(Service_FS, "(STUBBED) called");
+    LOG_DEBUG(Service_FS, "(STUBBED) called");
     R_THROW(FileSys::ResultTargetNotFound);
 }
 
 Result FSP_SRV::WriteSaveDataFileSystemExtraData(InBuffer<BufferAttr_HipcMapAlias> buffer,
                                                  FileSys::SaveDataSpaceId space_id,
                                                  u64 save_data_id) {
-    LOG_WARNING(Service_FS, "(STUBBED) called, space_id={}, save_data_id={:016X}", space_id,
+    LOG_DEBUG(Service_FS, "(STUBBED) called, space_id={}, save_data_id={:016X}", space_id,
                 save_data_id);
     R_SUCCEED();
 }
@@ -398,7 +398,7 @@ Result FSP_SRV::WriteSaveDataFileSystemExtraData(InBuffer<BufferAttr_HipcMapAlia
 Result FSP_SRV::WriteSaveDataFileSystemExtraDataWithMaskBySaveDataAttribute(
     InBuffer<BufferAttr_HipcMapAlias> buffer, InBuffer<BufferAttr_HipcMapAlias> mask_buffer,
     FileSys::SaveDataSpaceId space_id, FileSys::SaveDataAttribute attribute) {
-    LOG_WARNING(Service_FS,
+    LOG_DEBUG(Service_FS,
                 "(STUBBED) called, space_id={}, attribute.program_id={:016X}\n"
                 "attribute.user_id={:016X}{:016X}, attribute.save_id={:016X}\n"
                 "attribute.type={}, attribute.rank={}, attribute.index={}",
@@ -415,7 +415,7 @@ Result FSP_SRV::ReadSaveDataFileSystemExtraDataWithMaskBySaveDataAttribute(
     // correct
     [[maybe_unused]] constexpr auto flags = static_cast<u32>(FileSys::SaveDataFlags::None);
 
-    LOG_WARNING(Service_FS,
+    LOG_DEBUG(Service_FS,
                 "(STUBBED) called, flags={}, space_id={}, attribute.program_id={:016X}\n"
                 "attribute.user_id={:016X}{:016X}, attribute.save_id={:016X}\n"
                 "attribute.type={}, attribute.rank={}, attribute.index={}",
@@ -428,7 +428,7 @@ Result FSP_SRV::ReadSaveDataFileSystemExtraDataWithMaskBySaveDataAttribute(
 Result FSP_SRV::ReadSaveDataFileSystemExtraData(OutBuffer<BufferAttr_HipcMapAlias> out_buffer,
                                                 u64 save_data_id) {
     // Stub, backend needs an impl to read/write the SaveDataExtraData
-    LOG_WARNING(Service_FS, "(STUBBED) called, save_data_id={:016X}", save_data_id);
+    LOG_DEBUG(Service_FS, "(STUBBED) called, save_data_id={:016X}", save_data_id);
     std::memset(out_buffer.data(), 0, out_buffer.size());
     R_SUCCEED();
 }
@@ -437,7 +437,7 @@ Result FSP_SRV::ReadSaveDataFileSystemExtraDataBySaveDataAttribute(
     OutBuffer<BufferAttr_HipcMapAlias> out_buffer, FileSys::SaveDataSpaceId space_id,
     FileSys::SaveDataAttribute attribute) {
     // Stub, backend needs an impl to read/write the SaveDataExtraData
-    LOG_WARNING(Service_FS,
+    LOG_DEBUG(Service_FS,
                 "(STUBBED) called, space_id={}, attribute.program_id={:016X}\n"
                 "attribute.user_id={:016X}{:016X}, attribute.save_id={:016X}\n"
                 "attribute.type={}, attribute.rank={}, attribute.index={}",
@@ -451,7 +451,7 @@ Result FSP_SRV::ReadSaveDataFileSystemExtraDataBySaveDataSpaceId(
     OutBuffer<BufferAttr_HipcMapAlias> out_buffer, FileSys::SaveDataSpaceId space_id,
     u64 save_data_id) {
     // Stub, backend needs an impl to read/write the SaveDataExtraData
-    LOG_WARNING(Service_FS, "(STUBBED) called, space_id={}, save_data_id={:016X}", space_id,
+    LOG_DEBUG(Service_FS, "(STUBBED) called, space_id={}, save_data_id={:016X}", space_id,
                 save_data_id);
     std::memset(out_buffer.data(), 0, out_buffer.size());
     R_SUCCEED();
@@ -459,7 +459,7 @@ Result FSP_SRV::ReadSaveDataFileSystemExtraDataBySaveDataSpaceId(
 
 Result FSP_SRV::OpenSaveDataTransferProhibiter(
     OutInterface<ISaveDataTransferProhibiter> out_prohibiter, u64 id) {
-    LOG_WARNING(Service_FS, "(STUBBED) called, id={:016X}", id);
+    LOG_DEBUG(Service_FS, "(STUBBED) called, id={:016X}", id);
     *out_prohibiter = std::make_shared<ISaveDataTransferProhibiter>(system);
     R_SUCCEED();
 }
@@ -543,7 +543,7 @@ Result FSP_SRV::OpenDataStorageByDataId(OutInterface<IStorage> out_interface,
 
 Result FSP_SRV::OpenPatchDataStorageByCurrentProcess(OutInterface<IStorage> out_interface,
                                                      FileSys::StorageId storage_id, u64 title_id) {
-    LOG_WARNING(Service_FS, "(STUBBED) called with storage_id={:02X}, title_id={:016X}", storage_id,
+    LOG_DEBUG(Service_FS, "(STUBBED) called with storage_id={:02X}, title_id={:016X}", storage_id,
                 title_id);
 
     R_RETURN(FileSys::ResultTargetNotFound);
@@ -628,7 +628,7 @@ Result FSP_SRV::FlushAccessLogOnSdCard() {
 Result FSP_SRV::ExtendSaveDataFileSystem(FileSys::SaveDataSpaceId space_id, u64 save_data_id,
                                          s64 available_size, s64 journal_size) {
     // We don't have an index of save data ids, so we can't implement this.
-    LOG_WARNING(Service_FS,
+    LOG_DEBUG(Service_FS,
                 "(STUBBED) called, space_id={}, save_data_id={:016X}, available_size={:#x}, "
                 "journal_size={:#x}",
                 space_id, save_data_id, available_size, journal_size);
@@ -636,7 +636,7 @@ Result FSP_SRV::ExtendSaveDataFileSystem(FileSys::SaveDataSpaceId space_id, u64 
 }
 
 Result FSP_SRV::GetCacheStorageSize(s32 index, Out<s64> out_data_size, Out<s64> out_journal_size) {
-    LOG_WARNING(Service_FS, "(STUBBED) called with index={}", index);
+    LOG_DEBUG(Service_FS, "(STUBBED) called with index={}", index);
 
     *out_data_size = 0;
     *out_journal_size = 0;
