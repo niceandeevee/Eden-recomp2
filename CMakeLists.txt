@@ -18,6 +18,7 @@ include(DetectPlatform)
 include(DetectArchitecture)
 include(DefaultConfig)
 include(UseLTO)
+option(EDEN_FULL_LTO "Use full (monolithic) LTO instead of ThinLTO when ENABLE_LTO is on" OFF)
 include(FasterLinker)
 include(UseCcache)
 include(CMakeDependentOption)
@@ -379,8 +380,22 @@ if (CXX_GCC OR CXX_CLANG)
             # hot code = better use of the Cortex-X4/A720 instruction caches.
             set(_sd8gen3_ldflags "-Wl,-Bsymbolic-functions -Wl,--gc-sections -Wl,--icf=safe -Wl,-O2")
             if (ENABLE_LTO)
-                # Run the full -O3 pipeline in the ThinLTO backend too (default is -O2).
+                # Run the full -O3 pipeline in the LTO backend too (default is -O2).
                 string(APPEND _sd8gen3_ldflags " -Wl,--lto-O3")
+                if (EDEN_FULL_LTO)
+                    # Monolithic LTO: the whole library is merged into one module before
+                    # optimisation, so inlining and devirtualisation see across every component
+                    # (core <-> dynarmic <-> video_core) instead of ThinLTO's summary-based import.
+                    # Codegen is still split in 4 so the link fits the CI runner's time budget.
+                    foreach(_lang C CXX)
+                        set(CMAKE_${_lang}_COMPILE_OPTIONS_IPO "-flto=full")
+                        set(CMAKE_${_lang}_LINK_OPTIONS_IPO "-flto=full")
+                    endforeach()
+                    string(APPEND _sd8gen3_ldflags " -Wl,--lto-partitions=4")
+                    message(STATUS "LTO: full (monolithic)")
+                else()
+                    message(STATUS "LTO: thin")
+                endif()
             endif()
             set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${_sd8gen3_ldflags}")
             set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_sd8gen3_ldflags}")
