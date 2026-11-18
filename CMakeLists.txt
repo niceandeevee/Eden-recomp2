@@ -394,12 +394,12 @@ if (CXX_GCC OR CXX_CLANG)
                     # Monolithic LTO: the whole library is merged into one module before
                     # optimisation, so inlining and devirtualisation see across every component
                     # (core <-> dynarmic <-> video_core) instead of ThinLTO's summary-based import.
-                    # Codegen is still split in 4 so the link fits the CI runner's time budget.
+                    # Codegen runs as a single partition: with --lto-partitions=4 the .init_array
+                    # entry for a template static member was dropped (its initialiser never ran).
                     foreach(_lang C CXX)
                         set(CMAKE_${_lang}_COMPILE_OPTIONS_IPO "-flto=full")
                         set(CMAKE_${_lang}_LINK_OPTIONS_IPO "-flto=full")
                     endforeach()
-                    string(APPEND _sd8gen3_ldflags " -Wl,--lto-partitions=4")
                     message(STATUS "LTO: full (monolithic)")
                 else()
                     message(STATUS "LTO: thin")

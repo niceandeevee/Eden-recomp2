@@ -177,6 +177,12 @@ jobs:
           f=$(find src/android/app/build -path '*merged_native_libs*' -name libyuzu-android.so | head -1)
           [ -n "$f" ] && cp "$f" symbols/ && ls -l symbols
 
+      - name: Check every static initializer runs
+        shell: bash
+        run: |
+          od=$(ls "$ANDROID_HOME"/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objdump | tail -1)
+          python3 .ci/android/check_static_init.py "$od" symbols/libyuzu-android.so
+
       - name: Upload native symbols
         continue-on-error: true
         uses: actions/upload-artifact@v7
