@@ -116,37 +116,20 @@ jobs:
           echo "PGO_ARGS=$PGO_ARGS" >> "$GITHUB_ENV"
 
       - name: Build APK (full LTO)
-        id: build_full_lto
         if: env.USE_LTO == 'true'
-        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           chmod +x .ci/android/build.sh
           .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON -DEDEN_FULL_LTO=ON $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
+          # Fail loudly if the library wasn't actually built with full LTO.
+          grep -q -- "-- LTO: full (monolithic)" "$RUNNER_TEMP/build.log"
 
-      - name: Build APK (ThinLTO)
-        id: build_lto
-        if: env.USE_LTO == 'true' && steps.build_full_lto.outcome == 'failure'
-        continue-on-error: true
+      - name: Build APK (instrumented / LTO disabled by input)
+        if: env.USE_LTO != 'true'
         shell: bash
         run: |
           set -o pipefail
-          why=$(grep -m3 -E ': error:|ld.lld: error|FAILED:' "$RUNNER_TEMP/build.log" | cut -c1-240 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
-          echo "::notice title=Full LTO did not finish; building with ThinLTO::${why}"
-          rm -rf build src/android/app/.cxx src/android/app/build artifacts
-          chmod +x .ci/android/build.sh
-          .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
-
-      - name: Build APK (without LTO)
-        if: env.USE_LTO != 'true' || (steps.build_full_lto.outcome == 'failure' && steps.build_lto.outcome == 'failure')
-        shell: bash
-        run: |
-          set -o pipefail
-          if [ "${{ steps.build_lto.outcome }}" = "failure" ]; then
-            echo "::warning::LTO build failed; rebuilding without LTO"
-            rm -rf build src/android/app/.cxx src/android/app/build artifacts
-          fi
           chmod +x .ci/android/build.sh
           .ci/android/build.sh -t s24 -b Release $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
 
