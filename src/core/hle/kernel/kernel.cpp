@@ -942,7 +942,12 @@ const Kernel::PhysicalCore& KernelCore::PhysicalCore(std::size_t id) const {
     return *impl->cores[id];
 }
 
-size_t KernelCore::CurrentPhysicalCoreIndex() const {
+// The thread_local accessors below are never inlined. Guest threads are fibers that resume on
+// whichever host core thread schedules them next; if a caller inlined the TLS access, the
+// compiler may keep the thread pointer from before a fiber switch and then read or write another
+// thread's TLS. Full LTO did exactly that in MultiCoreRunGuestThread -> HandleInterrupt ->
+// GetCurrentEmuThread (SIGSEGV writing through a stale thread pointer in BotW).
+YUZU_NO_INLINE size_t KernelCore::CurrentPhysicalCoreIndex() const {
     const u32 core_id = impl->GetCurrentHostThreadID();
     if (core_id >= Core::Hardware::NUM_CPU_CORES) {
         return Core::Hardware::NUM_CPU_CORES - 1;
@@ -958,7 +963,7 @@ const Kernel::PhysicalCore& KernelCore::CurrentPhysicalCore() const {
     return *impl->cores[CurrentPhysicalCoreIndex()];
 }
 
-Kernel::KScheduler* KernelCore::CurrentScheduler() {
+YUZU_NO_INLINE Kernel::KScheduler* KernelCore::CurrentScheduler() {
     if (auto const core_id = impl->GetCurrentHostThreadID(); core_id < Core::Hardware::NUM_CPU_CORES)
         return std::addressof(*impl->schedulers[core_id]);
     return {}; // This is expected when called from not a guest thread
@@ -1138,15 +1143,15 @@ void KernelCore::RunOnGuestCoreProcess(std::string&& process_name, std::function
     ASSERT(R_SUCCEEDED(thread->Run(*this)));
 }
 
-u32 KernelCore::GetCurrentHostThreadID() const {
+YUZU_NO_INLINE u32 KernelCore::GetCurrentHostThreadID() const {
     return impl->GetCurrentHostThreadID();
 }
 
-KThread* KernelCore::GetCurrentEmuThread() const {
+YUZU_NO_INLINE KThread* KernelCore::GetCurrentEmuThread() const {
     return impl->GetCurrentEmuThread(Impl::tls_data);
 }
 
-void KernelCore::SetCurrentEmuThread(KThread* thread) {
+YUZU_NO_INLINE void KernelCore::SetCurrentEmuThread(KThread* thread) {
     impl->SetCurrentEmuThread(thread);
 }
 
@@ -1318,11 +1323,11 @@ const KMemoryLayout& KernelCore::MemoryLayout() const {
     return *impl->memory_layout;
 }
 
-bool KernelCore::IsPhantomModeForSingleCore() const {
+YUZU_NO_INLINE bool KernelCore::IsPhantomModeForSingleCore() const {
     return impl->IsPhantomModeForSingleCore();
 }
 
-void KernelCore::SetIsPhantomModeForSingleCore(bool value) {
+YUZU_NO_INLINE void KernelCore::SetIsPhantomModeForSingleCore(bool value) {
     impl->SetIsPhantomModeForSingleCore(value);
 }
 
