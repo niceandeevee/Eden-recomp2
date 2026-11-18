@@ -122,9 +122,6 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          # AGP no longer reads ANDROID_NDK_HOME (it uses ndkVersion) and logs that on every
-          # native task when the runner sets it.
-          unset ANDROID_NDK_HOME
           chmod +x .ci/android/build.sh
           .ci/android/build.sh -t s24 -b Release -DENABLE_LTO=ON -DEDEN_FULL_LTO=ON $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
           # Fail loudly if the library wasn't actually built with full LTO.
@@ -135,7 +132,6 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          unset ANDROID_NDK_HOME
           chmod +x .ci/android/build.sh
           .ci/android/build.sh -t s24 -b Release $PGO_ARGS 2>&1 | tee -a "$RUNNER_TEMP/build.log"
 
