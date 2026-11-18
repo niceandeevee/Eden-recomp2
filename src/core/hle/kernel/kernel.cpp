@@ -7,6 +7,7 @@
 #include <array>
 #include <atomic>
 #include <bitset>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <thread>
@@ -35,6 +36,7 @@
 #include "core/hle/kernel/k_object_name.h"
 #include "core/hle/kernel/k_page_buffer.h"
 #include "core/hle/kernel/k_process.h"
+#include "core/hle/kernel/physical_core.h"
 #include "core/hle/kernel/k_resource_limit.h"
 #include "core/hle/kernel/k_scheduler.h"
 #include "core/hle/kernel/k_scoped_resource_reservation.h"
@@ -43,7 +45,6 @@
 #include "core/hle/kernel/k_thread.h"
 #include "core/hle/kernel/k_worker_task_manager.h"
 #include "core/hle/kernel/kernel.h"
-#include "core/hle/kernel/physical_core.h"
 #include "core/hle/result.h"
 #include "core/hle/service/server_manager.h"
 #include "core/hle/service/sm/sm.h"
@@ -1232,25 +1233,48 @@ void KernelCore::SuspendEmulation(bool suspended) {
     // Wait for process execution to stop.
     // KernelCore::SuspendEmulation must be called from locked context,
     // or we could race another call, interfering with waiting.
-    const auto TryWait = [&]() {
+    // Returns the cores still running a thread of a suspended process (bit i = core i). A thread
+    // found running is asked to suspend again: one that was waiting or not yet in the thread list
+    // when the loop above ran can be running now without a suspend request, and a game thread
+    // spinning on a lock held by a suspended thread then never stops (ANR on pause in BotW, with
+    // this loop spinning on the UI thread). The scheduler lock is recursive, and requesting an
+    // already-requested suspend only retries it.
+    const auto BusyCores = [&]() {
         KScopedSchedulerLock sl{*this};
 
+        u32 busy = 0;
         for (auto& process : processes) {
             for (auto i = 0; i < static_cast<s32>(Core::Hardware::NUM_CPU_CORES); ++i) {
-                if (Scheduler(i).GetSchedulerCurrentThread()->GetOwnerProcess() ==
-                    process.GetPointerUnsafe()) {
-                    // A thread has not finished running yet.
-                    // Continue waiting.
-                    return false;
+                KThread* const thread = Scheduler(i).GetSchedulerCurrentThread();
+                if (thread->GetOwnerProcess() == process.GetPointerUnsafe()) {
+                    busy |= 1U << i;
+                    thread->RequestSuspend(*this, SuspendType::System);
                 }
             }
         }
-
-        return true;
+        return busy;
     };
 
-    while (!TryWait()) {
-        // ...
+    // Also re-interrupt busy cores in case one missed its interrupt, and yield rather than
+    // hammering the scheduler lock. Give up after a few seconds so the UI thread is never
+    // blocked long enough for Android to kill the app.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    for (u32 busy = BusyCores(), round = 0; busy != 0; busy = BusyCores(), ++round) {
+        if (std::chrono::steady_clock::now() > deadline) {
+            LOG_ERROR(Kernel, "Cores {:#x} did not stop within 3 s; continuing without them",
+                      busy);
+            break;
+        }
+        for (u32 i = 0; i < Core::Hardware::NUM_CPU_CORES; ++i) {
+            if ((busy >> i) & 1) {
+                PhysicalCore(i).Interrupt();
+            }
+        }
+        if (round < 64) {
+            std::this_thread::yield();
+        } else {
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        }
     }
 }
 
