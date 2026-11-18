@@ -396,6 +396,32 @@ std::map<int, PerfThreadSample> PerfReadThreads() {
     return out;
 }
 
+/// Resident memory, total address space (both MiB) and number of mappings of this process.
+std::string PerfMemory() {
+    long rss_kb = -1, vm_kb = -1;
+    if (FILE* file = std::fopen("/proc/self/status", "re")) {
+        char line[256];
+        while (std::fgets(line, sizeof(line), file)) {
+            if (std::strncmp(line, "VmRSS:", 6) == 0) {
+                rss_kb = std::strtol(line + 6, nullptr, 10);
+            } else if (std::strncmp(line, "VmSize:", 7) == 0) {
+                vm_kb = std::strtol(line + 7, nullptr, 10);
+            }
+        }
+        std::fclose(file);
+    }
+    long maps = 0;
+    if (FILE* file = std::fopen("/proc/self/maps", "re")) {
+        char buf[4096];
+        size_t n;
+        while ((n = std::fread(buf, 1, sizeof(buf), file)) > 0) {
+            maps += std::count(buf, buf + n, '\n');
+        }
+        std::fclose(file);
+    }
+    return fmt::format("rss={}MB vm={}GB maps={}", rss_kb / 1024, vm_kb / 1024 / 1024, maps);
+}
+
 long PerfReadLong(const char* path) {
     FILE* file = std::fopen(path, "re");
     if (file == nullptr) {
@@ -484,10 +510,10 @@ void PerfMonitorLoop(std::stop_token token, const std::function<bool()>& refresh
 
         LOG_INFO(Frontend,
                  "[Perf] fps={:.1f} frametime={:.1f}ms speed={:.0f}% | all threads={:.0f}% | {}"
-                 "| core MHz: {}| write faults/s={:.0f} cache protects/s={:.0f}{}",
+                 "| core MHz: {}| write faults/s={:.0f} cache protects/s={:.0f} | {}{}",
                  g_perf_fps.load(), g_perf_frametime.load() * 1000.0, g_perf_speed.load() * 100.0,
                  total, threads, clocks, static_cast<double>(faults - prev_faults) / seconds,
-                 static_cast<double>(protects - prev_protects) / seconds, gpu);
+                 static_cast<double>(protects - prev_protects) / seconds, PerfMemory(), gpu);
         prev_faults = faults;
         prev_protects = protects;
 

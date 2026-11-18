@@ -546,12 +546,10 @@ struct Values {
                                                                  true,
                                                                  true};
 
+    // S24: Conservative. The Adreno shares system RAM, and Aggressive let the GPU caches grow to
+    // 6 GiB before evicting anything.
     SwitchableSetting<VramUsageMode, true> vram_usage_mode{linkage,
-#if defined(EDEN_S24_TUNING) && defined(__ANDROID__)
-                                                           VramUsageMode::Aggressive,
-#else
                                                            VramUsageMode::Conservative,
-#endif
                                                            "vram_usage_mode",
                                                            Category::RendererAdvanced};
 
