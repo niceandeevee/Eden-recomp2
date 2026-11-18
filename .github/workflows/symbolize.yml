@@ -13,6 +13,10 @@ on:
         description: "Optional regex: list matching symbols (llvm-nm) with addresses"
         required: false
         default: ""
+      disasm_grep:
+        description: "Optional regex: list functions whose disassembly matches it (e.g. a call target)"
+        required: false
+        default: ""
       find_refs:
         description: "Optional data address (hex): list functions whose code forms that address (adrp+add/ldr/str)"
         required: false
@@ -51,6 +55,13 @@ jobs:
             NM=$(command -v llvm-nm || ls /usr/bin/llvm-nm-* | head -1)
             echo "== symbols matching: ${{ inputs.symbol_filter }}"
             "$NM" -C -S "$lib" | grep -E "${{ inputs.symbol_filter }}" | head -200
+          fi
+          if [ -n "${{ inputs.disasm_grep }}" ]; then
+            OD=$(command -v llvm-objdump || ls /usr/bin/llvm-objdump-* | head -1)
+            echo "== functions matching: ${{ inputs.disasm_grep }}"
+            "$OD" -d --no-show-raw-insn --print-imm-hex "$lib" \
+              | awk -v re='${{ inputs.disasm_grep }}' '/^[0-9a-f]+ <.*>:$/ { fn=$0; next } $0 ~ re { print fn " :: " $0 }' \
+              | head -60
           fi
           if [ -n "${{ inputs.find_refs }}" ]; then
             OD=$(command -v llvm-objdump || ls /usr/bin/llvm-objdump-* | head -1)
