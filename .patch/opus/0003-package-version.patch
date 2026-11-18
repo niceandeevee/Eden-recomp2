@@ -1,0 +1,7 @@
+Opus derives its version from git or from a package_version file (release tarballs ship
+one). The source archive has neither, so CMake warned "Could not get package version".
+
+--- /dev/null
++++ b/package_version
+@@ -0,0 +1 @@
++PACKAGE_VERSION="1.5.2"

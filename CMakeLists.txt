@@ -523,7 +523,11 @@ endif()
 AddJsonPackage(fmt)
 
 # lz4
+# lz4's CMake still declares a pre-3.10 minimum; don't print CMake's deprecation notice for it.
+set(_eden_warn_deprecated ${CMAKE_WARN_DEPRECATED})
+set(CMAKE_WARN_DEPRECATED OFF)
 AddJsonPackage(lz4)
+set(CMAKE_WARN_DEPRECATED ${_eden_warn_deprecated})
 
 if (lz4_ADDED)
     add_library(lz4::lz4 ALIAS lz4_static)

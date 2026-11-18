@@ -28,13 +28,13 @@ endif()
 
 # Legacy (android only)
 if (YUZU_LEGACY)
-    message(WARNING "Making legacy build. Performance may suffer.")
+    message(STATUS "Making legacy build. Performance may suffer.")
     add_compile_definitions(YUZU_LEGACY)
 endif()
 
 # Genshin Spoof (android only)
 if (GENSHIN_SPOOF)
-    message(WARNING "Making Genshin spoof build")
+    message(STATUS "Making Genshin spoof build")
     add_compile_definitions(GENSHIN_SPOOF)
 endif()
 
