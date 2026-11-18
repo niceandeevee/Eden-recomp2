@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       lto:
-        description: "Link-time optimization (faster code, longer build). Falls back to a non-LTO build if it fails."
+        description: "Full link-time optimization (faster code, longer build). Off builds without LTO."
         type: boolean
         default: true
       pgo:
@@ -25,6 +25,10 @@ on:
 concurrency:
   group: build-s24-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write   # publish symbol maps to the symbol-maps branch
+  actions: read
 
 jobs:
   android:
@@ -182,6 +186,58 @@ jobs:
         run: |
           od=$(ls "$ANDROID_HOME"/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objdump | tail -1)
           python3 .ci/android/check_static_init.py "$od" symbols/libyuzu-android.so
+
+      - name: Publish symbol map
+        # Keeps the unstripped library and a sorted symbol map for each build on the
+        # symbol-maps branch, so crash addresses can be resolved offline with git + llvm tools.
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bin=$(dirname "$(ls "$ANDROID_HOME"/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm | tail -1)")
+          so="$PWD/symbols/libyuzu-android.so"
+          build_id=$("$bin/llvm-readelf" -n "$so" | awk '/Build ID/ {print $3}')
+          name="${GITHUB_RUN_ID}-${GITHUB_SHA::7}-${build_id}"
+          work=$(mktemp -d)
+          cd "$work"
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth 1 origin symbol-maps 2>/dev/null; then
+            git checkout -q FETCH_HEAD -- . 2>/dev/null || true
+          fi
+          mkdir -p maps libs
+          {
+            echo "# run ${GITHUB_RUN_ID}  commit ${GITHUB_SHA}  build-id ${build_id}"
+            echo "# address size type symbol (sorted by address)"
+            "$bin/llvm-nm" -n -S -C --defined-only "$so"
+          } | xz -6 > "maps/${name}.txt.xz"
+          xz -6 -T0 -c "$so" > "libs/${name}.so.xz"
+          # Keep maps for the last 30 builds and libraries for the last 4 (run IDs only grow).
+          ls maps/*.txt.xz | sort -t/ -k2 -n | head -n -30 | xargs -r rm -f
+          ls libs/*.so.xz | sort -t/ -k2 -n | head -n -4 | xargs -r rm -f
+          {
+            echo "# Eden S24+ symbol maps"
+            echo
+            echo "Files are named <run id>-<commit>-<ELF build id>. A tombstone's build id for"
+            echo "libyuzu-android.so identifies the exact file. Resolve addresses with:"
+            echo
+            echo '    xz -dk libs/<name>.so.xz && llvm-symbolizer --obj=libs/<name>.so --inlines -C 0x...'
+            echo
+            echo "| run | commit | build id |"
+            echo "|---|---|---|"
+            for f in $(ls maps/*.txt.xz | sort -t/ -k2 -nr); do
+              b=$(basename "$f" .txt.xz); IFS=- read -r r c i <<<"$b"
+              echo "| $r | $c | $i |"
+            done
+          } > README.md
+          git checkout -q --orphan publish
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+            commit -q -m "Symbols for run ${GITHUB_RUN_ID} (${GITHUB_SHA::7}, build id ${build_id})"
+          git push -q -f origin HEAD:refs/heads/symbol-maps
+          echo "Published ${name}"
 
       - name: Upload native symbols
         continue-on-error: true
