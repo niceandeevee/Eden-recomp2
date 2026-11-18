@@ -50,6 +50,8 @@ struct Memory::Impl {
 
     void SetCurrentPageTable(Kernel::KProcess& process) {
         current_page_table = &process.GetPageTable().GetImpl();
+        coarse_block_state.clear();
+        coarse_block_state.shrink_to_fit();
 
         if (process.IsApplication() && Settings::IsFastmemEnabled()) {
             current_page_table->fastmem_arena = system.DeviceMemory().buffer.VirtualBasePointer();
@@ -68,6 +70,7 @@ struct Memory::Impl {
     void MapMemoryRegion(Common::PageTable& page_table, Common::ProcessAddress base, u64 size,
                          Common::PhysicalAddress target, Common::MemoryPermission perms,
                          bool separate_heap) {
+        ForgetCoarseBlocks(page_table, GetInteger(base), size);
         ASSERT_MSG((size & YUZU_PAGEMASK) == 0, "non-page aligned size: {:016X}", size);
         ASSERT_MSG((base & YUZU_PAGEMASK) == 0, "non-page aligned base: {:016X}", GetInteger(base));
         ASSERT_MSG(target >= DramMemoryMap::Base, "Out of bounds target: {:016X}",
@@ -82,6 +85,7 @@ struct Memory::Impl {
 
     void UnmapRegion(Common::PageTable& page_table, Common::ProcessAddress base, u64 size,
                      bool separate_heap) {
+        ForgetCoarseBlocks(page_table, GetInteger(base), size);
         ASSERT_MSG((size & YUZU_PAGEMASK) == 0, "non-page aligned size: {:016X}", size);
         ASSERT_MSG((base & YUZU_PAGEMASK) == 0, "non-page aligned base: {:016X}", GetInteger(base));
         MapPages(page_table, base / YUZU_PAGESIZE, size / YUZU_PAGESIZE, 0,
@@ -94,6 +98,7 @@ struct Memory::Impl {
 
     void ProtectRegion(Common::PageTable& page_table, VAddr vaddr, u64 size,
                        Common::MemoryPermission perms) {
+        ForgetCoarseBlocks(page_table, vaddr, size);
         ASSERT_MSG((size & YUZU_PAGEMASK) == 0, "non-page aligned size: {:016X}", size);
         ASSERT_MSG((vaddr & YUZU_PAGEMASK) == 0, "non-page aligned base: {:016X}", vaddr);
 
@@ -396,6 +401,7 @@ struct Memory::Impl {
         if (vaddr == 0 || !AddressSpaceContains(*current_page_table, vaddr, size)) {
             return;
         }
+        ForgetCoarseBlocks(*current_page_table, vaddr, size);
 
         if (current_page_table->fastmem_arena) {
             const auto perm{debug ? Common::MemoryPermission{}
@@ -560,6 +566,9 @@ struct Memory::Impl {
             return;
         }
         current_page_table->entries.CommitRegion(begin >> YUZU_PAGEBITS, end >> YUZU_PAGEBITS);
+        if (coarse_block_state.empty()) {
+            coarse_block_state.assign(static_cast<size_t>(max_addr >> BlockBits), CoarseUnknown);
+        }
 
         for (u64 block = begin; block < end; block += BlockSize) {
             bool any_cached = false;
@@ -573,6 +582,17 @@ struct Memory::Impl {
             }
             const auto perm = any_cached ? Common::MemoryPermission::Read
                                          : Common::MemoryPermission::ReadWrite;
+
+            // Most calls leave the block's protection unchanged (a neighbouring page is still
+            // cached, or it was already writable). Skip the mprotect then: each one is a system
+            // call that also flushes the TLB of every core running the process, and BotW makes
+            // 12-14 thousand of these calls a second.
+            u8& state = coarse_block_state[static_cast<size_t>(block >> BlockBits)];
+            const u8 wanted = any_cached ? CoarseReadOnly : CoarseReadWrite;
+            if (state == wanted) {
+                continue;
+            }
+            state = wanted;
 
             // Protect each run of ordinary/cached pages inside the block.
             u64 run_start = 0;
@@ -839,6 +859,29 @@ struct Memory::Impl {
     Core::System& system;
     Tegra::MaxwellDeviceMemoryManager* gpu_device_memory{};
     Common::PageTable* current_page_table = nullptr;
+
+    /// Android, non-NCE: last protection applied to each 64 KiB block of the fastmem arena by
+    /// ProtectCachedBlocks, so unchanged blocks skip mprotect. Anything else that changes host
+    /// protections (map, unmap, guest permission changes, debug marks) resets its blocks to
+    /// CoarseUnknown, which forces the next update to apply the protection again.
+    static constexpr u8 CoarseUnknown = 0;
+    static constexpr u8 CoarseReadOnly = 1;
+    static constexpr u8 CoarseReadWrite = 2;
+    std::vector<u8> coarse_block_state;
+
+    void ForgetCoarseBlocks(const Common::PageTable& page_table, u64 vaddr, u64 size) {
+        if (coarse_block_state.empty() || &page_table != current_page_table || size == 0) {
+            return;
+        }
+        const u64 first = vaddr >> 16;
+        const u64 last = (vaddr + size - 1) >> 16;
+        if (first >= coarse_block_state.size()) {
+            return;
+        }
+        const u64 stop = (std::min<u64>)(last + 1, coarse_block_state.size());
+        std::fill(coarse_block_state.begin() + first, coarse_block_state.begin() + stop,
+                  CoarseUnknown);
+    }
 
     std::array<VideoCore::RasterizerDownloadArea, Core::Hardware::NUM_CPU_CORES> rasterizer_read_areas{};
     std::array<GPUDirtyState, Core::Hardware::NUM_CPU_CORES> rasterizer_write_areas{};

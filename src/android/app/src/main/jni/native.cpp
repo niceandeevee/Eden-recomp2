@@ -498,9 +498,10 @@ void PerfMonitorLoop(std::stop_token token, const std::function<bool()>& refresh
         std::string gpu;
         if (gpu_busy_readable) {
             const long busy = PerfReadLong("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage");
-            if (busy >= 0) {
+            // Samsung kernels return 0 here instead of refusing access; only report real values.
+            if (busy > 0) {
                 gpu = fmt::format(" | gpu_busy={}%", busy);
-            } else {
+            } else if (busy < 0) {
                 gpu_busy_readable = false;
             }
         }
