@@ -5,10 +5,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #if defined(__ANDROID__) && defined(ARCHITECTURE_arm64)
+#include <thread>
 #include <adrenotools/driver.h>
 #endif
 
 #include "common/literals.h"
+#include "common/thread.h"
 #include "video_core/host_shaders/vulkan_turbo_mode_comp_spv.h"
 #include "video_core/renderer_vulkan/renderer_vulkan.h"
 #include "video_core/renderer_vulkan/vk_shader_util.h"
@@ -40,6 +42,42 @@ void TurboMode::QueueSubmitted() {
 }
 
 void TurboMode::Run(std::stop_token stop_token) {
+    Common::SetCurrentThreadName("GPUTurbo");
+#if defined(__ANDROID__) && defined(ARCHITECTURE_arm64)
+    // Android: just hold the Adreno turbo vote while the game is submitting work. The generic loop
+    // below re-sent the vote (an ioctl) on every iteration and its wait returned immediately while
+    // frames kept coming, so it spun a whole prime core at 100% for the entire session, taking
+    // that core from emulation and heating the SoC into throttling.
+    bool turbo_on = false;
+    while (!stop_token.stop_requested()) {
+        {
+            std::unique_lock lk{m_submission_lock};
+            // Sleep until the game is submitting work.
+            m_submission_cv.wait(lk, stop_token, [this] {
+                return (std::chrono::steady_clock::now() - m_submission_time) <=
+                       std::chrono::milliseconds{100};
+            });
+        }
+        if (stop_token.stop_requested()) {
+            break;
+        }
+        if (!turbo_on) {
+            adrenotools_set_turbo(true);
+            turbo_on = true;
+        }
+        // Re-check every 100 ms; drop the vote once submissions have stopped for 100 ms.
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        std::scoped_lock lk{m_submission_lock};
+        if ((std::chrono::steady_clock::now() - m_submission_time) > std::chrono::milliseconds{100}) {
+            adrenotools_set_turbo(false);
+            turbo_on = false;
+        }
+    }
+    if (turbo_on) {
+        adrenotools_set_turbo(false);
+    }
+    return;
+#endif
 #ifndef __ANDROID__
     auto& dld = m_device.GetLogical();
 

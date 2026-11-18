@@ -791,8 +791,13 @@ void HostMemory::Map(size_t virtual_offset, size_t host_offset, size_t length, M
     ASSERT(virtual_offset + length <= virtual_size);
     if (!InVirtualRange(virtual_offset, length)) {
         // Never let an out-of-range request reach mmap/mprotect: with MAP_FIXED it would replace
-        // memory that isn't ours (e.g. the allocator's), corrupting the process.
-        return;
+        // memory that isn't ours (e.g. the allocator's), corrupting the process. Handle the part
+        // that is inside the reserved range (a teardown unmap of a whole 39-bit address space
+        // only partly fits) and drop the rest.
+        if (virtual_offset >= virtual_size) {
+            return;
+        }
+        length = Common::AlignDown(virtual_size - virtual_offset, PageAlignment);
     }
     ASSERT(host_offset + length <= backing_size);
     if (length == 0 || !virtual_base || !impl) {
@@ -809,8 +814,13 @@ void HostMemory::Unmap(size_t virtual_offset, size_t length, bool separate_heap)
     ASSERT(virtual_offset + length <= virtual_size);
     if (!InVirtualRange(virtual_offset, length)) {
         // Never let an out-of-range request reach mmap/mprotect: with MAP_FIXED it would replace
-        // memory that isn't ours (e.g. the allocator's), corrupting the process.
-        return;
+        // memory that isn't ours (e.g. the allocator's), corrupting the process. Handle the part
+        // that is inside the reserved range (a teardown unmap of a whole 39-bit address space
+        // only partly fits) and drop the rest.
+        if (virtual_offset >= virtual_size) {
+            return;
+        }
+        length = Common::AlignDown(virtual_size - virtual_offset, PageAlignment);
     }
     if (length == 0 || !virtual_base || !impl) {
         return;
@@ -826,8 +836,13 @@ void HostMemory::Protect(size_t virtual_offset, size_t length, MemoryPermission 
     ASSERT(virtual_offset + length <= virtual_size);
     if (!InVirtualRange(virtual_offset, length)) {
         // Never let an out-of-range request reach mmap/mprotect: with MAP_FIXED it would replace
-        // memory that isn't ours (e.g. the allocator's), corrupting the process.
-        return;
+        // memory that isn't ours (e.g. the allocator's), corrupting the process. Handle the part
+        // that is inside the reserved range (a teardown unmap of a whole 39-bit address space
+        // only partly fits) and drop the rest.
+        if (virtual_offset >= virtual_size) {
+            return;
+        }
+        length = Common::AlignDown(virtual_size - virtual_offset, PageAlignment);
     }
     if (length == 0 || !virtual_base || !impl) {
         return;
