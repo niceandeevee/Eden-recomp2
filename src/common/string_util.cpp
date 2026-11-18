@@ -7,7 +7,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <codecvt>
 #include <locale>
 #include <sstream>
 #include <string_view>
@@ -115,19 +114,110 @@ std::string ReplaceAll(std::string result, const std::string& src, const std::st
     return result;
 }
 
+namespace {
+// Hand-written UTF conversions (std::wstring_convert/codecvt are deprecated). Malformed input
+// becomes U+FFFD instead of throwing.
+constexpr char32_t ReplacementChar = 0xFFFD;
+
+void AppendUTF8(std::string& out, char32_t cp) {
+    if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
+        cp = ReplacementChar;
+    }
+    if (cp < 0x80) {
+        out.push_back(static_cast<char>(cp));
+    } else if (cp < 0x800) {
+        out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else if (cp < 0x10000) {
+        out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else {
+        out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
+}
+
+/// Decodes one code point starting at input[pos] and advances pos past it.
+char32_t DecodeUTF8(std::string_view input, size_t& pos) {
+    const auto byte = [&](size_t i) { return static_cast<u8>(input[i]); };
+    const u8 lead = byte(pos);
+    size_t length;
+    char32_t cp;
+    char32_t min;
+    if (lead < 0x80) {
+        ++pos;
+        return lead;
+    } else if ((lead & 0xE0) == 0xC0) {
+        length = 2, cp = lead & 0x1F, min = 0x80;
+    } else if ((lead & 0xF0) == 0xE0) {
+        length = 3, cp = lead & 0x0F, min = 0x800;
+    } else if ((lead & 0xF8) == 0xF0) {
+        length = 4, cp = lead & 0x07, min = 0x10000;
+    } else {
+        ++pos;
+        return ReplacementChar;
+    }
+    if (pos + length > input.size()) {
+        ++pos;
+        return ReplacementChar;
+    }
+    for (size_t i = 1; i < length; ++i) {
+        const u8 cont = byte(pos + i);
+        if ((cont & 0xC0) != 0x80) {
+            ++pos;
+            return ReplacementChar;
+        }
+        cp = (cp << 6) | (cont & 0x3F);
+    }
+    pos += length;
+    if (cp < min || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
+        return ReplacementChar;
+    }
+    return cp;
+}
+} // Anonymous namespace
+
 std::string UTF16ToUTF8(std::u16string_view input) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
-    return convert.to_bytes(input.data(), input.data() + input.size());
+    std::string out;
+    out.reserve(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        char32_t cp = input[i];
+        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < input.size() && input[i + 1] >= 0xDC00 &&
+            input[i + 1] <= 0xDFFF) {
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (input[i + 1] - 0xDC00);
+            ++i;
+        }
+        AppendUTF8(out, cp);
+    }
+    return out;
 }
 
 std::u16string UTF8ToUTF16(std::string_view input) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
-    return convert.from_bytes(input.data(), input.data() + input.size());
+    std::u16string out;
+    out.reserve(input.size());
+    for (size_t pos = 0; pos < input.size();) {
+        const char32_t cp = DecodeUTF8(input, pos);
+        if (cp >= 0x10000) {
+            const char32_t v = cp - 0x10000;
+            out.push_back(static_cast<char16_t>(0xD800 + (v >> 10)));
+            out.push_back(static_cast<char16_t>(0xDC00 + (v & 0x3FF)));
+        } else {
+            out.push_back(static_cast<char16_t>(cp));
+        }
+    }
+    return out;
 }
 
 std::u32string UTF8ToUTF32(std::string_view input) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> convert;
-    return convert.from_bytes(input.data(), input.data() + input.size());
+    std::u32string out;
+    out.reserve(input.size());
+    for (size_t pos = 0; pos < input.size();) {
+        out.push_back(DecodeUTF8(input, pos));
+    }
+    return out;
 }
 
 #ifdef _WIN32

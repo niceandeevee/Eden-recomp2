@@ -90,7 +90,7 @@ public:
     [[nodiscard]] virtual const Type& GetValue() const {
         return value;
     }
-    [[nodiscard]] virtual const Type& GetValue(bool need_global) const {
+    [[nodiscard]] virtual const Type& GetValue([[maybe_unused]] bool need_global) const {
         return value;
     }
 

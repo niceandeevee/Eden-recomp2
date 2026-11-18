@@ -26,8 +26,8 @@ void CleanupJNI(JNIEnv* env) {
     s_open_external_url = nullptr;
 }
 
-void AndroidWebBrowser::OpenLocalWebPage(const std::string& local_url, ExtractROMFSCallback extract_romfs_callback, OpenWebPageCallback callback) const {
-    LOG_WARNING(Frontend, "(STUBBED)");
+void AndroidWebBrowser::OpenLocalWebPage([[maybe_unused]] const std::string& local_url, [[maybe_unused]] ExtractROMFSCallback extract_romfs_callback, OpenWebPageCallback callback) const {
+    LOG_DEBUG(Frontend, "(STUBBED)");
     callback(Service::AM::Frontend::WebExitReason::WindowClosed, "");
 }
 

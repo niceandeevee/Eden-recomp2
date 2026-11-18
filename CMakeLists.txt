@@ -513,6 +513,10 @@ if (Boost_ADDED)
             $<$<COMPILE_LANGUAGE:C,CXX>:-Wno-conversion>
             $<$<COMPILE_LANGUAGE:C,CXX>:-Wno-implicit-fallthrough>)
     endif()
+    # Upstream boost.process compares a char against EOF; not ours to change.
+    if (TARGET boost_process AND NOT MSVC)
+        target_compile_options(boost_process PRIVATE -w)
+    endif()
 endif()
 
 # fmt

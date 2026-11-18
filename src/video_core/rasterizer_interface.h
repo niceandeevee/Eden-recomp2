@@ -151,8 +151,9 @@ public:
 
     /// Attempt to use a faster method to perform a surface copy
     [[nodiscard]] virtual bool AccelerateSurfaceCopy(
-        const Tegra::Engines::Fermi2D::Surface& src, const Tegra::Engines::Fermi2D::Surface& dst,
-        const Tegra::Engines::Fermi2D::Config& copy_config) {
+        [[maybe_unused]] const Tegra::Engines::Fermi2D::Surface& src,
+        [[maybe_unused]] const Tegra::Engines::Fermi2D::Surface& dst,
+        [[maybe_unused]] const Tegra::Engines::Fermi2D::Config& copy_config) {
         return false;
     }
 
@@ -162,17 +163,18 @@ public:
                                           std::span<const u8> memory) = 0;
 
     /// Initialize disk cached resources for the game being emulated
-    virtual void LoadDiskResources(u64 title_id, std::stop_token stop_loading,
-                                   const DiskResourceLoadCallback& callback) {}
+    virtual void LoadDiskResources([[maybe_unused]] u64 title_id,
+                                   [[maybe_unused]] std::stop_token stop_loading,
+                                   [[maybe_unused]] const DiskResourceLoadCallback& callback) {}
 
-    virtual void InitializeChannel(Tegra::Control::ChannelState& channel) {}
+    virtual void InitializeChannel([[maybe_unused]] Tegra::Control::ChannelState& channel) {}
 
-    virtual void BindChannel(Tegra::Control::ChannelState& channel) {}
+    virtual void BindChannel([[maybe_unused]] Tegra::Control::ChannelState& channel) {}
 
-    virtual void ReleaseChannel(s32 channel_id) {}
+    virtual void ReleaseChannel([[maybe_unused]] s32 channel_id) {}
 
     /// Register the address as a Transform Feedback Object
-    virtual void RegisterTransformFeedback(GPUVAddr tfb_object_addr) {}
+    virtual void RegisterTransformFeedback([[maybe_unused]] GPUVAddr tfb_object_addr) {}
 
     /// Returns true when the rasterizer has Draw Transform Feedback capabilities
     virtual bool HasDrawTransformFeedback() {

@@ -428,7 +428,7 @@ namespace Common::Android {
 
     jint InitFFmpegOnLoad(JavaVM *vm);
 
-    void JNI_OnUnload(JavaVM *vm, void *reserved) {
+    void JNI_OnUnload(JavaVM *vm, [[maybe_unused]] void *reserved) {
         JNIEnv *env;
         if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION) != JNI_OK) {
             return;

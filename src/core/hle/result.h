@@ -391,7 +391,7 @@ constexpr void UpdateCurrentResultReference<Result&>(Result& result_reference, R
 }
 
 template <>
-constexpr void UpdateCurrentResultReference<const Result>(Result result_reference, Result result) {}
+constexpr void UpdateCurrentResultReference<const Result>(Result, Result) {}
 } // namespace ResultImpl
 
 #define DECLARE_CURRENT_RESULT_REFERENCE_AND_STORAGE(COUNTER_VALUE)                                \

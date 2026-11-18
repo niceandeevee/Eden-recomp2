@@ -27,6 +27,18 @@ using namespace Common::FS;
 
 namespace Service::SSL {
 
+namespace {
+// OpenSSL 4 deprecates SSL_set1_host in favour of SSL_set1_dnsname (same matching for host
+// names; a null name clears the list).
+int SetVerifyHost(SSL* ssl, const char* hostname) {
+#if OPENSSL_VERSION_MAJOR >= 4
+    return SSL_set1_dnsname(ssl, hostname);
+#else
+    return SSL_set1_host(ssl, hostname);
+#endif
+}
+} // Anonymous namespace
+
 // Import OpenSSL's `SSL` type into the namespace.  This is needed because the
 // namespace is also named `SSL`.
 using ::SSL;
@@ -159,8 +171,8 @@ public:
 
     Result SetHostName(const char* hostname) override {
         if (!skip_cert_verification) {
-            if (!SSL_set1_host(ssl, hostname)) {
-                LOG_ERROR(Service_SSL, "SSL_set1_host({}) failed", hostname);
+            if (!SetVerifyHost(ssl, hostname)) {
+                LOG_ERROR(Service_SSL, "Setting the verified host name ({}) failed", hostname);
                 return CheckOpenSSLErrors();
             }
         }
@@ -189,7 +201,7 @@ public:
                     skip_cert_verification);
         if (skip_cert_verification) {
             SSL_set_verify(ssl, SSL_VERIFY_NONE, nullptr);
-            SSL_set1_host(ssl, nullptr);
+            SetVerifyHost(ssl, nullptr);
             SSL_set_hostflags(ssl, 0);
         } else {
             SSL_set_verify(ssl, SSL_VERIFY_PEER, nullptr);
