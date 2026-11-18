@@ -318,7 +318,7 @@ if (ANDROID AND ARCHITECTURE_arm64)
     AddJsonPackage(libadrenotools)
     # Third-party sources (designated initialisers without every field, a deliberately
     # truncating snprintf); silence them rather than patch upstream.
-    foreach(_t adrenotools linkernsbypass)
+    foreach(_t adrenotools hook_impl linkernsbypass)
         if (TARGET ${_t})
             target_compile_options(${_t} PRIVATE -w)
         endif()

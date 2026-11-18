@@ -30,7 +30,7 @@ namespace Service::SSL {
 namespace {
 // OpenSSL 4 deprecates SSL_set1_host in favour of SSL_set1_dnsname (same matching for host
 // names; a null name clears the list).
-int SetVerifyHost(SSL* ssl, const char* hostname) {
+int SetVerifyHost(::SSL* ssl, const char* hostname) {
 #if OPENSSL_VERSION_MAJOR >= 4
     return SSL_set1_dnsname(ssl, hostname);
 #else
