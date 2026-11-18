@@ -1,0 +1,44 @@
+# Attaches a finished build's APK to a GitHub release so it has a direct download link
+# (artifact downloads are zipped and need a signed-in GitHub session).
+name: Publish APK release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Build run ID whose Eden-S24plus-APK artifact to publish"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download APK artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "${{ inputs.run_id }}" -R "$GITHUB_REPOSITORY" -n Eden-S24plus-APK -D apk
+          ls -l apk
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run=${{ inputs.run_id }}
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq .head_sha)
+          src=$(ls apk/*.apk | head -1)
+          cp "$src" Eden-S24plus.apk
+          tag="build-$run"
+          gh release delete "$tag" -R "$GITHUB_REPOSITORY" -y --cleanup-tag 2>/dev/null || true
+          gh release create "$tag" Eden-S24plus.apk "$src" -R "$GITHUB_REPOSITORY" \
+            --target "$sha" --latest \
+            --title "Eden S24+ build $run" \
+            --notes "APK from build run $run (commit ${sha::7}).
+
+          Direct download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/Eden-S24plus.apk"
+          echo "::notice title=APK::https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/Eden-S24plus.apk"

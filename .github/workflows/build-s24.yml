@@ -255,3 +255,20 @@ jobs:
           path: upload/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish APK release
+        # Direct download link: releases/download/build-<run>/Eden-S24plus.apk, and
+        # releases/latest/download/Eden-S24plus.apk always points at the newest build.
+        if: env.PGO != 'generate'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          src=$(ls upload/*.apk | head -1)
+          cp "$src" Eden-S24plus.apk
+          tag="build-${GITHUB_RUN_ID}"
+          gh release create "$tag" Eden-S24plus.apk "$src" -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --latest \
+            --title "Eden S24+ build ${GITHUB_RUN_ID}" \
+            --notes "APK from build run ${GITHUB_RUN_ID} (commit ${GITHUB_SHA::7})."
+          echo "::notice title=APK::https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/Eden-S24plus.apk"
