@@ -5,7 +5,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 // import android.annotation.SuppressLint
-import com.android.build.gradle.api.ApplicationVariant
 import kotlin.collections.setOf
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 import com.github.triplet.gradle.androidpublisher.ReleaseStatus
@@ -63,11 +62,11 @@ android {
     androidResources {
         // English-only build: no per-app language list needed.
         generateLocaleConfig = false
+        // Keep only English resources, including those pulled in from AndroidX/Material libraries.
+        localeFilters += listOf("en")
     }
 
     defaultConfig {
-        // Keep only English resources, including those pulled in from AndroidX/Material libraries.
-        resourceConfigurations += listOf("en")
         applicationId = "dev.eden.eden_emulator"
         minSdk = 24
         targetSdk = 36
@@ -351,13 +350,6 @@ ktlint {
     version.set("0.47.1")
     android.set(true)
     ignoreFailures.set(false)
-    disabledRules.set(
-        setOf(
-            "no-wildcard-imports",
-            "package-name",
-            "import-ordering"
-        )
-    )
     reporters {
         reporter(ReporterType.CHECKSTYLE)
     }

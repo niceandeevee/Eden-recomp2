@@ -1,0 +1,3 @@
+# ktlint 0.47 reads disabled rules from .editorconfig (the Gradle plugin's disabledRules is deprecated).
+[*.{kt,kts}]
+ktlint_disabled_rules = no-wildcard-imports,package-name,import-ordering

@@ -409,7 +409,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         intentGame = CustomSettingsHandler.applyCustomSettingsWithDriverCheck(
                             titleId,
                             customSettings,
-                            requireContext(),
                             requireActivity(),
                             driverViewModel
                         )

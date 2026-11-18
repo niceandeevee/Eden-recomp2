@@ -74,7 +74,8 @@ object SoftwareKeyboard {
     }
 
     @JvmStatic
-    fun executeInline(config: KeyboardConfig) {
+    // The JNI signature passes the config; the inline keyboard does not need it.
+    fun executeInline(@Suppress("UNUSED_PARAMETER") config: KeyboardConfig) {
         NativeLibrary.sEmulationActivity.get()!!.runOnUiThread { executeInlineImpl() }
     }
 

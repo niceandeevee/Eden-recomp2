@@ -35,10 +35,9 @@ object CustomSettingsHandler {
      * Apply custom settings from a string instead of loading from file
      * @param titleId The game title ID (16-digit hex string)
      * @param customSettings The complete INI file content as string
-     * @param context Application context
      * @return Game object created from title ID, or null if not found
      */
-    fun applyCustomSettings(titleId: String, customSettings: String, context: Context): Game? {
+    fun applyCustomSettings(titleId: String, customSettings: String): Game? {
         // For synchronous calls without driver checking
         Log.info("[CustomSettingsHandler] Applying custom settings for title ID: $titleId")
         // Find the game by title ID
@@ -78,7 +77,6 @@ object CustomSettingsHandler {
      * Apply custom settings with automatic driver checking and installation
      * @param titleId The game title ID (16-digit hex string)
      * @param customSettings The complete INI file content as string
-     * @param context Application context
      * @param activity Fragment activity for driver installation dialogs (optional)
      * @param driverViewModel DriverViewModel for driver management (optional)
      * @return Game object created from title ID, or null if not found
@@ -86,7 +84,6 @@ object CustomSettingsHandler {
     suspend fun applyCustomSettingsWithDriverCheck(
         titleId: String,
         customSettings: String,
-        context: Context,
         activity: FragmentActivity?,
         driverViewModel: DriverViewModel?
     ): Game? {
