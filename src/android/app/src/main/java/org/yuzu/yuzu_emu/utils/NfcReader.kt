@@ -62,6 +62,7 @@ class NfcReader(private val activity: Activity) {
             return
         }
 
+        @Suppress("DEPRECATION")
         val tag =
             intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
         readTagData(tag)
@@ -103,7 +104,7 @@ class NfcReader(private val activity: Activity) {
             }
 
             try {
-                val data = ntag215FastRead(amiibo, dataStart, dataEnd - 1)
+                val data = ntag215FastRead(amiibo, dataStart, dataEnd - 1) ?: return null
                 System.arraycopy(data, 0, tagData, i, (dataEnd - dataStart) * pageSize)
             } catch (e: IOException) {
                 return null

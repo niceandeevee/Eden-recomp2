@@ -98,7 +98,7 @@ class FreedrenoSettingsFragment : Fragment() {
         presetAdapter.submitList(FreedrenoPresets.ALL_PRESETS)
 
         // Setup current settings adapter (vertical list)
-        settingsAdapter = FreedrenoVariableAdapter(requireContext()) { variable, onDelete ->
+        settingsAdapter = FreedrenoVariableAdapter(requireContext()) { _, onDelete ->
             onDelete()
             loadCurrentSettings() // Refresh list after deletion
         }

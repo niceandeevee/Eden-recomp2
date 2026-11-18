@@ -33,7 +33,7 @@ object SoftwareKeyboard {
         fragment.show(emulationActivity!!.supportFragmentManager, KeyboardDialogFragment.TAG)
     }
 
-    private fun executeInlineImpl(config: KeyboardConfig) {
+    private fun executeInlineImpl() {
         val emulationActivity = NativeLibrary.sEmulationActivity.get()
 
         val overlayView = emulationActivity!!.findViewById<View>(R.id.surface_input_overlay)
@@ -41,7 +41,7 @@ object SoftwareKeyboard {
         val im =
             overlayView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         im.restartInput(overlayView)
-        im.showSoftInput(overlayView, InputMethodManager.SHOW_FORCED)
+        im.showSoftInput(overlayView, 0)
 
         // There isn't a good way to know that the IMM is dismissed, so poll every 500ms to submit inline keyboard result.
         val handler = Handler(Looper.myLooper()!!)
@@ -75,7 +75,7 @@ object SoftwareKeyboard {
 
     @JvmStatic
     fun executeInline(config: KeyboardConfig) {
-        NativeLibrary.sEmulationActivity.get()!!.runOnUiThread { executeInlineImpl(config) }
+        NativeLibrary.sEmulationActivity.get()!!.runOnUiThread { executeInlineImpl() }
     }
 
     // Corresponds to Service::AM::Applets::SwkbdType

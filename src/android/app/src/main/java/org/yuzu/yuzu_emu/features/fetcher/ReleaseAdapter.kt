@@ -90,22 +90,20 @@ class ReleaseAdapter(
 
                 isPreview = !isPreview
                 if (isPreview) {
-                    val body = bodyPreview.replace("\\r\\n", "\n").replace("\\n", "\n")
-                        .replace("\n", "<br>")
-
                     binding.textBody.text = Html.fromHtml(body, FROM_HTML_MODE_COMPACT)
                     binding.textBody.maxLines = 3
                     binding.textBody.ellipsize = TextUtils.TruncateAt.END
                 } else {
-                    val body = release.body.replace("\\r\\n", "\n\n").replace("\\n", "\n\n")
+                    val fullBody =
+                        release.body.replace("\\r\\n", "\n\n").replace("\\n", "\n\n")
 
                     try {
-                        val doc = markdownParser.parse(body)
+                        val doc = markdownParser.parse(fullBody)
                         val html = htmlRenderer.render(doc)
                         binding.textBody.text = Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT)
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        binding.textBody.text = body
+                        binding.textBody.text = fullBody
                     }
 
                     binding.textBody.maxLines = Integer.MAX_VALUE

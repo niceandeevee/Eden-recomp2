@@ -186,7 +186,7 @@ class GamesFragment : Fragment() {
             getGamesDirectory.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data)
         }
 
-        binding.launchQlaunch?.setOnClickListener {
+        binding.launchQlaunch.setOnClickListener {
             launchQLaunch()
         }
 
@@ -576,7 +576,7 @@ class GamesFragment : Fragment() {
             mlpFab.rightMargin = rightInset + fabPadding
             binding.addDirectory.layoutParams = mlpFab
 
-            binding.launchQlaunch?.let { qlaunchButton ->
+            binding.launchQlaunch.let { qlaunchButton ->
                 val mlpQLaunch = qlaunchButton.layoutParams as ViewGroup.MarginLayoutParams
                 mlpQLaunch.leftMargin = leftInset + fabPadding
                 mlpQLaunch.bottomMargin = barInsets.bottom + fabPadding

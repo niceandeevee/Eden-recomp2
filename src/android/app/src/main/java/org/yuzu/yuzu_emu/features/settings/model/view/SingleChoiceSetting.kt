@@ -32,10 +32,11 @@ class SingleChoiceSetting(
             else -> -1
         }
 
-    fun setSelectedValue(value: Int) =
+    fun setSelectedValue(value: Int) {
         when (setting) {
             is AbstractIntSetting -> setting.setInt(value)
             is AbstractByteSetting -> setting.setByte(value.toByte())
-            else -> -1
+            else -> Unit
         }
+    }
 }

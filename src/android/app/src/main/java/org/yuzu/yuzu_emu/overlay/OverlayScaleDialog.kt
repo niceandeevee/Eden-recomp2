@@ -108,7 +108,6 @@ class OverlayScaleDialog(
             val dialogWidthPx = (320 * density).toInt()
             val dialogHeightPx = (400 * density).toInt() // set your estimated dialog height
 
-            val screenHeight = context.resources.displayMetrics.heightPixels
 
 
             layoutParams.x = anchorX + anchorWidth / 2 - dialogWidthPx / 2

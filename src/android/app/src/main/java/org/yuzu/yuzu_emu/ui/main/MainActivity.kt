@@ -114,10 +114,10 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
-        window.statusBarColor =
-            ContextCompat.getColor(applicationContext, android.R.color.transparent)
-        window.navigationBarColor =
-            ContextCompat.getColor(applicationContext, android.R.color.transparent)
+        // Android 15+ is always edge-to-edge with transparent bars; only older releases need this.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            setLegacyTransparentBars()
+        }
 
         binding.statusBarShade.setBackgroundColor(
             ThemeHelper.getColorWithOpacity(
@@ -213,7 +213,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
     private fun downloadAndInstallUpdate(release: NativeLibrary.UpdateResult) {
         CoroutineScope(Dispatchers.IO).launch {
-            val packageId = applicationContext.packageName
             val asset = release.assets[0]
             val artifact = asset.split("/").last()
             val apkFile = File(cacheDir, "update-$artifact.apk")
@@ -530,4 +529,11 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 result = result
             )
         }
+
+    @Suppress("DEPRECATION")
+    private fun setLegacyTransparentBars() {
+        val transparent = ContextCompat.getColor(applicationContext, android.R.color.transparent)
+        window.statusBarColor = transparent
+        window.navigationBarColor = transparent
+    }
 }

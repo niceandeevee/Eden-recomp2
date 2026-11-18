@@ -116,8 +116,7 @@ class EditUserDialogFragment : Fragment() {
             binding.buttonGenerateUuid.visibility = View.GONE
 
             val imagePath = NativeLibrary.getUserImagePath(existingUUID)
-            val imageFile = File(imagePath)
-            if (imageFile.exists()) {
+            if (imagePath != null && File(imagePath).exists()) {
                 val bitmap = BitmapFactory.decodeFile(imagePath)
                 binding.imageUserAvatar.setImageBitmap(bitmap)
                 hasCustomImage = true

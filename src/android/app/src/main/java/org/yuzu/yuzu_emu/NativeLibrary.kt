@@ -389,14 +389,9 @@ object NativeLibrary {
     @Keep
     @JvmStatic
     fun exitEmulationActivity(resultCode: Int) {
-        val Success = 0
-        val ErrorNotInitialized = 1
-        val ErrorGetLoader = 2
-        val ErrorSystemFiles = 3
-        val ErrorSharedFont = 4
+        // Result codes 0-4, 6 and 7 (success, not initialized, loader, system files, shared font,
+        // unknown) all fall through to the encryption/keys message below.
         val ErrorVideoCore = 5
-        val ErrorUnknown = 6
-        val ErrorLoader = 7
 
         val captionId: Int
         var descriptionId: Int

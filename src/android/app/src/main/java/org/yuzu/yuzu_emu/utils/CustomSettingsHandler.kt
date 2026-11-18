@@ -42,7 +42,7 @@ object CustomSettingsHandler {
         // For synchronous calls without driver checking
         Log.info("[CustomSettingsHandler] Applying custom settings for title ID: $titleId")
         // Find the game by title ID
-        val game = findGameByTitleId(titleId, context)
+        val game = findGameByTitleId(titleId)
         if (game == null) {
             Log.error("[CustomSettingsHandler] Game not found for title ID: $titleId")
             return null
@@ -92,7 +92,7 @@ object CustomSettingsHandler {
     ): Game? {
         Log.info("[CustomSettingsHandler] Applying custom settings for title ID: $titleId")
         // Find the game by title ID
-        val game = findGameByTitleId(titleId, context)
+        val game = findGameByTitleId(titleId)
         if (game == null) {
             Log.error("[CustomSettingsHandler] Game not found for title ID: $titleId")
             // This will be handled by the caller to show appropriate error message
@@ -331,7 +331,7 @@ object CustomSettingsHandler {
     /**
      * Find a game by its title ID in the user's game library
      */
-    fun findGameByTitleId(titleId: String, context: Context): Game? {
+    fun findGameByTitleId(titleId: String): Game? {
         Log.info("[CustomSettingsHandler] Searching for game with title ID: $titleId")
         // Convert hex title ID to decimal for comparison with programId
         val programIdDecimal = try {

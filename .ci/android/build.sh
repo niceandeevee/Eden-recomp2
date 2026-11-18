@@ -121,7 +121,7 @@ fi
 
 echo "-- building..."
 
-./gradlew "copy${FLAVOR}${TYPE}Outputs" \
+./gradlew --warning-mode all "copy${FLAVOR}${TYPE}Outputs" \
     -Dorg.gradle.caching="${CCACHE}" \
     -Dorg.gradle.parallel="${CCACHE}" \
     -Dorg.gradle.workers.max="${NUM_JOBS}" \

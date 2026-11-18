@@ -99,8 +99,9 @@ class SetupFragment : Fragment() {
             }
         )
 
-        requireActivity().window.navigationBarColor =
-            ContextCompat.getColor(requireContext(), android.R.color.transparent)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            setLegacyTransparentNavBar()
+        }
 
         pages = mutableListOf<SetupPage>()
         pages.apply {
@@ -566,4 +567,10 @@ class SetupFragment : Fragment() {
             }
             windowInsets
         }
+
+    @Suppress("DEPRECATION")
+    private fun setLegacyTransparentNavBar() {
+        requireActivity().window.navigationBarColor =
+            ContextCompat.getColor(requireContext(), android.R.color.transparent)
+    }
 }

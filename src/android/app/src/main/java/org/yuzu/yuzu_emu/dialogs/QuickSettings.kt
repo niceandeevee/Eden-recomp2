@@ -98,9 +98,9 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
         headerView.visibility = View.VISIBLE
 
         var isExpanded = false
-        names.forEachIndexed { index, name ->
+        names.forEachIndexed { index, optionName ->
             val radioButton = com.google.android.material.radiobutton.MaterialRadioButton(emulationFragment.requireContext())
-            radioButton.text = name
+            radioButton.text = optionName
             radioButton.id = View.generateViewId()
             radioButton.isChecked = index == currentIndex
             radioButton.setPadding(16, 8, 16, 8)
@@ -109,7 +109,7 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
                 if (isChecked) {
                     setting.setInt(values[index])
                     saveSettings()
-                    valueView.text = name
+                    valueView.text = optionName
                     onValueChanged?.invoke(values[index])
                 }
             }
@@ -177,6 +177,7 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
         switchContainer.visibility = View.VISIBLE
 
         switchView.isChecked = isChecked
+        switchView.isEnabled = isEnabled
 
         switchView.setOnCheckedChangeListener { _, checked ->
             callback(checked)

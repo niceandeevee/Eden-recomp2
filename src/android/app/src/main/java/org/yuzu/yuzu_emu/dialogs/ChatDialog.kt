@@ -69,7 +69,7 @@ class ChatDialog(context: Context) : BottomSheetDialog(context) {
             }
         }
 
-        NetPlayManager.setOnMessageReceivedListener { type, message ->
+        NetPlayManager.setOnMessageReceivedListener { _, _ ->
             handler.post {
                 chatAdapter.notifyDataSetChanged()
                 scrollToBottom()
