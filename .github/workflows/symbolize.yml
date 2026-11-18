@@ -9,6 +9,10 @@ on:
       addresses:
         description: "Space-separated rel_pc values from the crash report (hex, e.g. 0xbeee64)"
         required: true
+      symbol_filter:
+        description: "Optional regex: list matching symbols (llvm-nm) with addresses"
+        required: false
+        default: ""
 
 permissions:
   actions: read
@@ -35,7 +39,14 @@ jobs:
           for a in ${{ inputs.addresses }}; do
             fn=$("$SYM" --obj="$lib" --functions=linkage --demangle "$a" | head -1)
             out+="$a  ${fn}"$'\n'
+            echo "== $a (with inlined frames)"
+            "$SYM" --obj="$lib" --inlines --functions=linkage --demangle "$a"
           done
           echo "$out"
+          if [ -n "${{ inputs.symbol_filter }}" ]; then
+            NM=$(command -v llvm-nm || ls /usr/bin/llvm-nm-* | head -1)
+            echo "== symbols matching: ${{ inputs.symbol_filter }}"
+            "$NM" -C -S "$lib" | grep -E "${{ inputs.symbol_filter }}" | head -200
+          fi
           msg=$(printf '%s' "$out" | cut -c1-300 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
           echo "::notice title=Symbolized::$msg"
